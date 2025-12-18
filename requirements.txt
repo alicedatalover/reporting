@@ -1,0 +1,49 @@
+# ==================== CORE ====================
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# ==================== DATABASE ====================
+sqlalchemy[asyncio]==2.0.25
+aiomysql==0.2.0
+pymysql==1.1.0
+
+# ==================== CELERY ====================
+celery==5.3.6
+redis==5.0.1
+flower==2.0.1
+
+# ==================== AI & LLM ====================
+google-generativeai==0.3.2
+
+# ==================== HTTP ====================
+httpx==0.26.0
+aiohttp==3.9.1
+
+# ==================== DATA ====================
+pandas==2.1.4
+numpy==1.26.3
+python-dateutil==2.8.2
+
+# ==================== LOGGING ====================
+python-json-logger==2.0.7
+
+# ==================== UTILITIES ====================
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# ==================== STREAMLIT (Admin UI) ====================
+streamlit==1.30.0
+plotly==5.18.0
+
+# ==================== TESTING ====================
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0
+
+# ==================== CODE QUALITY ====================
+black==23.12.1
+ruff==0.1.11
+mypy==1.8.0

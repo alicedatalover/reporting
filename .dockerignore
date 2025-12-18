@@ -1,0 +1,109 @@
+-- ============================================================
+-- DONNÉES DE TEST POUR DÉVELOPPEMENT
+-- Genuka KPI Engine
+-- ============================================================
+
+-- ATTENTION: À utiliser UNIQUEMENT en développement
+-- Ne pas exécuter en production !
+
+-- ============================================================
+-- Activer les rapports pour les 3 entreprises beta
+-- ============================================================
+
+-- Les Délices de Milly
+INSERT INTO report_configs (
+    id,
+    company_id,
+    report_frequency,
+    contact_name,
+    contact_phone,
+    contact_email,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    REPLACE(UUID(), '-', ''),
+    '01hjt9qsj7b039ww1nyrn9kg5t',
+    'weekly',
+    'Contact Délices',
+    '+237658173627',
+    NULL,
+    1,
+    NOW(),
+    NOW()
+) ON DUPLICATE KEY UPDATE
+    contact_phone = '+237658173627',
+    is_active = 1,
+    updated_at = NOW();
+
+
+-- Genuka SARL
+INSERT INTO report_configs (
+    id,
+    company_id,
+    report_frequency,
+    contact_name,
+    contact_phone,
+    contact_email,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    REPLACE(UUID(), '-', ''),
+    '01hjpwjzgwr3y0d62wywg6z1pp',
+    'monthly',
+    'Contact Genuka',
+    NULL,
+    'hello@genuka.com',
+    1,
+    NOW(),
+    NOW()
+) ON DUPLICATE KEY UPDATE
+    contact_email = 'hello@genuka.com',
+    is_active = 1,
+    updated_at = NOW();
+
+
+-- Vitaashop
+INSERT INTO report_configs (
+    id,
+    company_id,
+    report_frequency,
+    contact_name,
+    contact_phone,
+    contact_email,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    REPLACE(UUID(), '-', ''),
+    '01hpz90v5y7s26taq1jq633zdt',
+    'monthly',
+    'Contact Vitaashop',
+    NULL,
+    NULL,
+    0,
+    NOW(),
+    NOW()
+) ON DUPLICATE KEY UPDATE
+    is_active = 0,
+    updated_at = NOW();
+
+
+-- Vérifier les configurations
+SELECT 
+    c.id,
+    c.name,
+    rc.report_frequency,
+    rc.contact_phone,
+    rc.contact_email,
+    rc.is_active
+FROM companies c
+LEFT JOIN report_configs rc ON c.id = rc.company_id
+WHERE c.id IN (
+    '01hjt9qsj7b039ww1nyrn9kg5t',
+    '01hjpwjzgwr3y0d62wywg6z1pp',
+    '01hpz90v5y7s26taq1jq633zdt'
+);
+
+SELECT 'Données de test insérées avec succès' AS status;
