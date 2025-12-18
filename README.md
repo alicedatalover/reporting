@@ -1,16 +1,14 @@
-
-
 # 🚀 Genuka KPI Engine
 
 **Système automatisé de génération et d'envoi de rapports d'activité pour PME**
 
-Génère automatiquement des rapports hebdomadaires, mensuels ou trimestriels avec KPIs, insights intelligents et recommandations IA, envoyés directement via WhatsApp ou Telegram.
+Génère automatiquement des rapports hebdomadaires, mensuels ou trimestriels avec KPIs, insights intelligents et recommandations IA, envoyés directement via WhatsApp.
 
 ---
 
 ## 📋 **Table des Matières**
 
--[Vue d'ensemble](#-vue-densemble)
+-[Vue d&#39;ensemble](#-vue-densemble)
 -[Fonctionnalités](#-fonctionnalités)
 -[Architecture](#-architecture)
 -[Prérequis](#-prérequis)
@@ -42,11 +40,13 @@ Genuka KPI Engine est un système intelligent qui :
 ## ✨ **Fonctionnalités**
 
 ### **Rapports Automatiques**
+
 - ✅ Hebdomadaires (chaque lundi 8h)
 - ✅ Mensuels (1er du mois 9h)
 - ✅ Trimestriels (Jan/Avr/Jul/Oct 10h)
 
 ### **KPIs Calculés**
+
 - 💰 Chiffre d'affaires avec variation vs période précédente
 - 🛒 Nombre de ventes
 - 👥 Nouveaux clients
@@ -56,18 +56,21 @@ Genuka KPI Engine est un système intelligent qui :
 - 📈 Résultat net (CA - Dépenses)
 
 ### **Insights Intelligents**
+
 - 🚨 **Clients à risque de churn** : Clients fidèles inactifs (priorité 4/5)
 - 📉 **Alertes stock** : Ruptures et stock faible (priorité 3-5/5)
 - 📊 **Variations saisonnières** : Hausses/baisses >20% (priorité 3/5)
 - 💰 **Analyse rentabilité** : Déficit, faible marge, excellente performance (priorité 2-5/5)
 
 ### **Recommandations IA**
+
 - 🤖 Générées par Google Gemini 2.0 Flash
 - 🎯 Actionnables et concrètes (pas de généralités)
 - 📊 Basées sur les KPIs et insights détectés
 - 💡 Fallback intelligent si Gemini échoue
 
 ### **Multi-canal**
+
 - 📱 WhatsApp Business API (Meta Graph API)
 - 💬 Telegram Bot API
 - 📧 Email (futur)
@@ -115,7 +118,6 @@ Genuka KPI Engine est un système intelligent qui :
 │   • Meta WhatsApp API                   │
 │   • Telegram Bot API                    │
 └─────────────────────────────────────────┘
-
 
 ---
 
