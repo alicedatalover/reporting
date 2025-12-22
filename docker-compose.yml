@@ -1,9 +1,27 @@
 services:
 
+  redis:
+    image: redis:7-alpine
+    container_name: genuka-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - genuka-network
+    restart: unless-stopped
+
   api:
     build:            # 👈 Build l'image à partir du Dockerfile
       context: .
       dockerfile: Dockerfile
+
     container_name: genuka-api
     ports:
       - "8000:8000"
@@ -39,6 +57,7 @@ services:
       - DB_HOST=host.docker.internal
     depends_on:
       - api
+      - redis
     volumes:
       - ./app:/app/app:ro
       - ./logs:/app/logs
@@ -66,6 +85,7 @@ services:
       - DB_HOST=host.docker.internal
     depends_on:
       - api
+      - redis
     volumes:
       - ./app:/app/app:ro
       - ./logs:/app/logs
@@ -77,6 +97,8 @@ services:
     restart: unless-stopped
 
 volumes:
+  redis_data:
+    driver: local
   beat_schedule:
     driver: local
 
