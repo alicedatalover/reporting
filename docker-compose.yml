@@ -29,7 +29,6 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
-      - DB_HOST=host.docker.internal
     volumes:
       - ./app:/app/app:ro
       - ./logs:/app/logs
@@ -54,7 +53,6 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
-      - DB_HOST=host.docker.internal
     depends_on:
       - api
       - redis
@@ -82,7 +80,6 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
-      - DB_HOST=host.docker.internal
     depends_on:
       - api
       - redis
