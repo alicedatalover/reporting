@@ -31,13 +31,18 @@ from app.infrastructure.repositories.company_repo import CompanyRepository
 from app.utils.formatters import WhatsAppFormatter
 from app.core.recommendations.generator import RecommendationsGenerator
 from app.domain.models import KPIData, KPIComparison, InsightModel
+from app.services.report_service import ReportService
+from app.domain.enums import ReportFrequency
+from datetime import date
 
 
 async def test_generate_and_send_report(
     company_id: str,
     chat_id: str,
     period: str,
-    use_test_data: bool = False
+    use_test_data: bool = False,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None
 ):
     """
     Teste la generation et l'envoi d'un rapport via Telegram.
@@ -47,6 +52,8 @@ async def test_generate_and_send_report(
         chat_id: ID du chat Telegram
         period: Periode du rapport (weekly, monthly, quarterly)
         use_test_data: Si True, utilise des donnees fictives sans DB
+        start_date: Date de debut optionnelle (YYYY-MM-DD)
+        end_date: Date de fin optionnelle (YYYY-MM-DD)
     """
 
     print("=" * 80)
@@ -85,17 +92,29 @@ async def test_generate_and_send_report(
 
         # Generer le rapport
         print(f"\n3. Generation du rapport {period}...")
-        report_data = await _generate_report_data(
-            company_id=company_id,
-            company_name=company_name,
-            period=period,
-            use_test_data=use_test_data
-        )
+
+        if use_test_data:
+            # Mode test : donnees fictives
+            report_data = await _generate_report_data(
+                company_id=company_id,
+                company_name=company_name,
+                period=period,
+                use_test_data=True
+            )
+        else:
+            # Mode production : VRAIS services avec DB
+            report_data = await _generate_real_report(
+                company_id=company_id,
+                period=period,
+                end_date=end_date
+            )
+
         print(f"   OK: Rapport genere")
+        print(f"      - Entreprise: {report_data.get('company_name', company_name)}")
         print(f"      - CA: {report_data['kpis']['total_revenue']:,.0f} XAF")
         print(f"      - Ventes: {report_data['kpis']['total_sales']}")
         print(f"      - Clients: {report_data['kpis']['new_customers']} nouveaux")
-        print(f"      - Recommandations: {'Oui (Gemini AI)' if report_data.get('recommendations') else 'Non'}")
+        print(f"      - Recommandations: {'Oui' if report_data.get('recommendations') else 'Non'}")
 
         # Formater le message avec le formatter professionnel
         print("\n4. Formatage du message pour Telegram...")
@@ -141,6 +160,55 @@ async def test_generate_and_send_report(
         print(f"\nERREUR: {e}")
         import traceback
         traceback.print_exc()
+
+
+async def _generate_real_report(
+    company_id: str,
+    period: str,
+    end_date: Optional[date] = None
+) -> dict:
+    """
+    Genere un rapport avec les VRAIS services (DB + Gemini).
+
+    Args:
+        company_id: ID de l'entreprise
+        period: Periode du rapport
+        end_date: Date de fin optionnelle
+
+    Returns:
+        Rapport complet avec vraies donnees
+    """
+    try:
+        # Initialiser la DB
+        init_database()
+
+        # Convertir la periode en enum
+        frequency_map = {
+            'weekly': ReportFrequency.WEEKLY,
+            'monthly': ReportFrequency.MONTHLY,
+            'quarterly': ReportFrequency.QUARTERLY
+        }
+        frequency = frequency_map.get(period, ReportFrequency.MONTHLY)
+
+        # Utiliser le generateur de session
+        async for session in get_db_session():
+            # Initialiser le ReportService avec la session
+            report_service = ReportService(session)
+
+            # Generer le rapport avec le VRAI service
+            print(f"   INFO: Utilisation du ReportService avec vraies donnees DB...")
+            report_data = await report_service.generate_report(
+                company_id=company_id,
+                frequency=frequency,
+                end_date=end_date
+            )
+
+            # Convertir en dict pour compatibilite avec le formatter
+            return report_data.model_dump()
+
+    except Exception as e:
+        print(f"   ERREUR: Impossible de generer le rapport reel ({e})")
+        raise
 
 
 async def _get_company_name(company_id: str, use_test_data: bool) -> str:
@@ -426,13 +494,45 @@ Configuration requise dans .env:
         help="Utiliser des donnees de test sans connexion DB"
     )
 
+    parser.add_argument(
+        "--start-date",
+        help="Date de debut au format YYYY-MM-DD (ex: 2024-09-01)"
+    )
+
+    parser.add_argument(
+        "--end-date",
+        help="Date de fin au format YYYY-MM-DD (ex: 2024-09-30)"
+    )
+
     args = parser.parse_args()
+
+    # Parser les dates si fournie
+    start_date_obj = None
+    end_date_obj = None
+
+    if args.end_date:
+        try:
+            end_date_obj = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+        except ValueError:
+            print(f"ERREUR: Format de date invalide pour end-date: {args.end_date}")
+            print("Utilisez le format YYYY-MM-DD (ex: 2024-09-30)")
+            return
+
+    if args.start_date:
+        try:
+            start_date_obj = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+        except ValueError:
+            print(f"ERREUR: Format de date invalide pour start-date: {args.start_date}")
+            print("Utilisez le format YYYY-MM-DD (ex: 2024-09-01)")
+            return
 
     await test_generate_and_send_report(
         company_id=args.company_id,
         chat_id=args.chat_id,
         period=args.period,
-        use_test_data=args.use_test_data
+        use_test_data=args.use_test_data,
+        start_date=start_date_obj,
+        end_date=end_date_obj
     )
 
 
