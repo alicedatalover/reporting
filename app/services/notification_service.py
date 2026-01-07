@@ -90,12 +90,9 @@ class NotificationService:
         )
         
         try:
-            logger.info(">>> STEP 1: Formatting message")
             # Formater le message
             message = self.formatter.format_report(report_data)
 
-            logger.info(f">>> STEP 2: Message formatted, length={len(message)}")
-            
             # Valider la taille
             if len(message) > 4096:
                 logger.warning(
@@ -103,8 +100,6 @@ class NotificationService:
                     extra={"length": len(message)}
                 )
                 message = message[:4090] + "...\n[Tronqué]"
-
-            logger.info(f">>> STEP 3: About to send via {method.value}")
             
             # Envoyer selon la méthode
             if method == DeliveryMethod.WHATSAPP:

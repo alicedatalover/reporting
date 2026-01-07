@@ -15,6 +15,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.utils.timezone import today_in_timezone
 from app.domain.models import KPIData, KPIComparison, InsightModel, ReportData
 from app.domain.enums import ReportFrequency
 from app.infrastructure.repositories import (
@@ -309,7 +310,7 @@ class ReportService:
         """
         
         if end_date is None:
-            end_date = date.today()
+            end_date = today_in_timezone()
         
         if frequency == ReportFrequency.WEEKLY:
             start_date = end_date - timedelta(days=6)

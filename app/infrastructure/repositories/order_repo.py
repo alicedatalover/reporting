@@ -256,3 +256,51 @@ class OrderRepository(BaseRepository):
                 "limit": limit
             }
         )
+
+    async def calculate_sales_kpis(
+        self,
+        company_id: str,
+        start_date: date,
+        end_date: date
+    ) -> Dict[str, Any]:
+        """
+        Calcule les KPIs de vente (revenue + count) en une seule requête optimisée.
+
+        Args:
+            company_id: ID de l'entreprise
+            start_date: Date de début
+            end_date: Date de fin
+
+        Returns:
+            Dict avec 'total_revenue' (Decimal) et 'total_sales' (int)
+        """
+        query = """
+            SELECT
+                COALESCE(SUM(amount), 0) as total_revenue,
+                COUNT(*) as total_sales
+            FROM orders
+            WHERE company_id = :company_id
+              AND DATE(created_at) BETWEEN :start_date AND :end_date
+              AND deleted_at IS NULL
+              AND status != 'cancelled'
+        """
+
+        result = await self._fetch_one(
+            query,
+            {
+                "company_id": company_id,
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        )
+
+        if result:
+            return {
+                "total_revenue": Decimal(str(result['total_revenue'])),
+                "total_sales": int(result['total_sales'])
+            }
+        else:
+            return {
+                "total_revenue": Decimal("0"),
+                "total_sales": 0
+            }

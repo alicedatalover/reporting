@@ -91,6 +91,7 @@ async def detailed_health_check(
     
     # Vérifier Redis (Celery)
     if settings.REDIS_HOST:
+        client = None
         try:
             client = redis.Redis(
                 host=settings.REDIS_HOST,
@@ -112,10 +113,11 @@ async def detailed_health_check(
             }
             health_status["status"] = "unhealthy"
         finally:
-            try:
-                await client.close()
-            except Exception:
-                pass
+            if client is not None:
+                try:
+                    await client.close()
+                except Exception:
+                    pass
     else:
         health_status["checks"]["celery"] = {
             "status": "not_configured",

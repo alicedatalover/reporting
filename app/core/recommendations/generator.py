@@ -75,15 +75,7 @@ class RecommendationsGenerator:
             prompt=prompt, max_tokens=settings.GEMINI_MAX_TOKENS, temperature=settings.GEMINI_TEMPERATURE
         )
         return self._clean_recommendations(recommendations)
-    
-    def _generate_fallback(
-        self,
-        kpis: KPIData,
-        kpis_comparison: KPIComparison,
-        insights: List[InsightModel]
-    ) -> str:
-        return self.prompt_builder.build_fallback_prompt(kpis, kpis_comparison, insights)
-    
+
     @staticmethod
     def _clean_recommendations(text: str) -> str:
         if not text: return ""

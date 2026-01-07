@@ -6,7 +6,7 @@ Contient toutes les tâches liées à la génération et l'envoi
 automatique des rapports d'activité.
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional, Dict, Any
 import logging
 import asyncio
@@ -14,6 +14,7 @@ import asyncio
 from celery import Task
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.utils.timezone import today_in_timezone
 from app.workers.celery_app import celery_app
 from app.infrastructure.database.connection import AsyncSessionLocal
 from app.services import ReportService, NotificationService, CompanyService
@@ -288,24 +289,13 @@ async def _generate_and_send_report(
     end_date: Optional[date] = None
 ) -> Dict[str, Any]:
     """Génère et envoie un rapport pour une entreprise."""
-    
+
     start_time = datetime.utcnow()
-    
-    # Créer un nouveau engine pour cette tâche
-    from app.infrastructure.database.connection import create_engine
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-    
-    engine = create_engine()
-    SessionLocal = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False
-    )
-    
     session = None
-    
+
     try:
-        async with SessionLocal() as session:
+        # Utiliser le AsyncSessionLocal global au lieu de créer un nouveau engine
+        async with AsyncSessionLocal() as session:
             # 1. Générer le rapport
             report_service = ReportService(session)
             
@@ -314,33 +304,25 @@ async def _generate_and_send_report(
                 frequency=frequency,
                 end_date=end_date
             )
-            
-            logger.info("Report generated successfully")  # ← LOG
-            
+
             # 2. Récupérer le destinataire si non fourni
             if not recipient:
                 company_service = CompanyService(session)
                 company_info = await company_service.get_company_with_config(company_id)
                 recipient = company_info.get('contact_phone')
-                
+
                 if not recipient:
                     raise ValueError("No recipient phone number configured")
-            
-            # 3. IMPORTANT : Créer NotificationService ICI (après la session)
-            logger.info("Creating NotificationService")  # ← NOUVEAU LOG
+
+            # 3. Créer NotificationService et envoyer
             notification_service = NotificationService()
-            logger.info(f"NotificationService created, telegram_client exists: {notification_service.telegram_client is not None}")  # ← NOUVEAU LOG
-            
+
             # 4. Envoyer la notification
-            logger.info(f"About to call send_report with method={delivery_method}")  # ← NOUVEAU LOG
-            
             send_success = await notification_service.send_report(
                 report_data=report_data,
                 recipient=recipient,
                 method=delivery_method
             )
-            
-            logger.info(f"send_report returned: {send_success}")  # ← NOUVEAU LOG
             
             # 5. Enregistrer dans l'historique
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -388,11 +370,8 @@ async def _generate_and_send_report(
                     extra={"error": str(save_error)},
                     exc_info=True
                 )
-        
+
         raise
-        
-    finally:
-        await engine.dispose()
 
 async def _save_report_history(
     session: AsyncSession,
@@ -421,7 +400,7 @@ async def _save_report_history(
         # Si parsing échoue, utiliser des valeurs par défaut
         if not start_date or not end_date:
             logger.warning("Failed to parse dates, using defaults")
-            end_date = date.today()
+            end_date = today_in_timezone()
             if frequency == ReportFrequency.WEEKLY:
                 start_date = end_date - timedelta(days=6)
             elif frequency == ReportFrequency.MONTHLY:
@@ -429,13 +408,13 @@ async def _save_report_history(
             else:  # QUARTERLY
                 quarter_month = ((end_date.month - 1) // 3) * 3 + 1
                 start_date = end_date.replace(month=quarter_month, day=1)
-        
+
         kpis_json = report_data.kpis.model_dump_json() if report_data.kpis else None
         insights_json = [i.model_dump() for i in report_data.insights] if report_data.insights else None
         recommendations = report_data.recommendations
     else:
         # Valeurs par défaut si pas de report_data
-        end_date = date.today()
+        end_date = today_in_timezone()
         if frequency == ReportFrequency.WEEKLY:
             start_date = end_date - timedelta(days=6)
         elif frequency == ReportFrequency.MONTHLY:

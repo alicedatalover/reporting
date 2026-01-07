@@ -7,6 +7,7 @@ Configure l'application avec tous les routers et middleware.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 
@@ -62,11 +63,18 @@ app = FastAPI(
 # ==================== MIDDLEWARE ====================
 
 # CORS
+# En dev, limiter aux origines locales, éviter "*" pour la sécurité
+allowed_origins = (
+    ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000"]
+    if settings.DEBUG
+    else ["https://genuka.com", "https://www.genuka.com", "https://app.genuka.com"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.DEBUG else ["https://genuka.com"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -118,11 +126,14 @@ async def global_exception_handler(request, exc):
         },
         exc_info=True
     )
-    
-    return {
-        "detail": "Internal server error",
-        "error": str(exc) if settings.DEBUG else "An error occurred"
-    }
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error": str(exc) if settings.DEBUG else "An error occurred"
+        }
+    )
 
 
 if __name__ == "__main__":

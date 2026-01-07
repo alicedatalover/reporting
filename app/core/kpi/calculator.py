@@ -82,14 +82,12 @@ class KPICalculator:
         
         # Calcul en parallèle de tous les KPIs
         try:
-            # KPIs de ventes
-            total_revenue = await self.order_repo.calculate_revenue_for_period(
+            # KPIs de ventes (optimisé en une seule requête)
+            sales_kpis = await self.order_repo.calculate_sales_kpis(
                 company_id, start_date, end_date
             )
-            
-            total_sales = await self.order_repo.count_sales_for_period(
-                company_id, start_date, end_date
-            )
+            total_revenue = sales_kpis['total_revenue']
+            total_sales = sales_kpis['total_sales']
             
             # KPIs clients
             new_customers = await self.customer_repo.count_new_customers(

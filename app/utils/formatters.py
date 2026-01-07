@@ -23,17 +23,17 @@ class WhatsAppFormatter:
     WHATSAPP_LIMIT = 4096
 
     @staticmethod
-    def format_report(report_data: Dict[str, Any]) -> list[str]:
+    def format_report(report_data: Dict[str, Any]) -> str:
         """
         Formate un rapport complet.
 
-        Retourne une LISTE de messages déjà splittés (prêts à envoyer).
+        Retourne un message formaté (non splitté - le split se fait lors de l'envoi si nécessaire).
 
         Args:
             report_data: Dictionnaire ou modèle Pydantic
 
         Returns:
-            list[str] : messages découpés si nécessaire
+            str : message formaté pour WhatsApp/Telegram
         """
 
         # Convertir depuis Pydantic si nécessaire
@@ -125,10 +125,8 @@ class WhatsAppFormatter:
 
         full_message = "\n".join(lines)
 
-        # ---------------------------
-        # SPLIT intelligent
-        # ---------------------------
-        return WhatsAppFormatter._split_into_chunks(full_message)
+        # Retourner le message complet (le split sera fait lors de l'envoi si nécessaire)
+        return full_message
 
     # ---------------------------------------------------------------------
     # UTILITAIRES

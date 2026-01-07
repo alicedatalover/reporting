@@ -220,7 +220,7 @@ async def preview_report(
         # Formater pour le retour
         from app.utils.formatters import WhatsAppFormatter
         formatter = WhatsAppFormatter()
-        formatted_message = formatter.format_report(report_data.model_dump())
+        formatted_message = formatter.format_report(report_data)
         
         return {
             "company_name": report_data.company_name,

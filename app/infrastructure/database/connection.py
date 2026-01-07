@@ -44,10 +44,11 @@ def create_engine() -> AsyncEngine:
     )
     
     # Configuration du pool de connexions
+    # Pool augmenté pour gérer workers multiples (API + Celery)
     pool_config = {
         "poolclass": AsyncAdaptedQueuePool,
-        "pool_size": 10,
-        "max_overflow": 5,
+        "pool_size": 20,  # Augmenté de 10 à 20
+        "max_overflow": 10,  # Augmenté de 5 à 10 (max 30 connexions)
         "pool_pre_ping": False,  # Désactivé pour Celery
         "pool_recycle": 1800,
         "pool_timeout": 30,
@@ -113,16 +114,18 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 async def check_database_connection() -> bool:
     """
     Vérifie que la connexion à la base de données fonctionne.
-    
+
     Returns:
         True si la connexion fonctionne, False sinon
     """
+    from sqlalchemy import text
+
     try:
         if engine is None:
             init_database()
-        
+
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
             return True
     except Exception as e:
         logger.error(
