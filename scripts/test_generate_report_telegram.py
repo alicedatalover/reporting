@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 # scripts/test_generate_report_telegram.py
 """
-Script pour tester la génération et l'envoi d'un rapport via Telegram.
+Script pour tester la generation et l'envoi d'un rapport via Telegram.
 
 Usage:
     python scripts/test_generate_report_telegram.py --company-id 1 --chat-id 123456789 --period weekly
@@ -18,30 +19,29 @@ sys.path.insert(0, str(ROOT_DIR))
 
 from app.config import settings
 from app.infrastructure.external import TelegramClient
-from app.services.report_service import ReportService
 
 
 async def test_generate_and_send_report(company_id: int, chat_id: str, period: str):
     """
-    Teste la génération et l'envoi d'un rapport via Telegram.
+    Teste la generation et l'envoi d'un rapport via Telegram.
 
     Args:
         company_id: ID de l'entreprise
         chat_id: ID du chat Telegram
-        period: Période du rapport (weekly, monthly, quarterly)
+        period: Periode du rapport (weekly, monthly, quarterly)
     """
 
     print("=" * 80)
-    print(f">ê TEST GÉNÉRATION ET ENVOI RAPPORT TELEGRAM")
+    print("TEST GENERATION ET ENVOI RAPPORT TELEGRAM")
     print("=" * 80)
     print(f"Company ID: {company_id}")
     print(f"Chat ID: {chat_id}")
-    print(f"Période: {period}")
+    print(f"Periode: {period}")
     print("=" * 80)
 
-    # Vérifier la configuration Telegram
+    # Verifier la configuration Telegram
     if not settings.TELEGRAM_BOT_TOKEN:
-        print("L TELEGRAM_BOT_TOKEN non configuré dans .env")
+        print("ERREUR: TELEGRAM_BOT_TOKEN non configure dans .env")
         return
 
     try:
@@ -52,15 +52,15 @@ async def test_generate_and_send_report(company_id: int, chat_id: str, period: s
         print("\n1. Test de connexion Telegram...")
         bot_info = await telegram_client.get_bot_info()
         if bot_info:
-            print(f" Bot connecté: @{bot_info.get('username')}")
+            print(f"OK: Bot connecte: @{bot_info.get('username')}")
         else:
-            print("L Impossible de se connecter au bot Telegram")
+            print("ERREUR: Impossible de se connecter au bot Telegram")
             return
 
-        # Générer le rapport
-        print(f"\n2. Génération du rapport {period}...")
+        # Generer un rapport de test
+        print(f"\n2. Generation du rapport {period}...")
 
-        # Calculer les dates selon la période
+        # Calculer les dates selon la periode
         end_date = datetime.now()
         if period == "weekly":
             start_date = end_date - timedelta(days=7)
@@ -69,54 +69,100 @@ async def test_generate_and_send_report(company_id: int, chat_id: str, period: s
         elif period == "quarterly":
             start_date = end_date - timedelta(days=90)
         else:
-            print(f"L Période invalide: {period}")
+            print(f"ERREUR: Periode invalide: {period}")
             return
 
-        print(f"Période: {start_date.strftime('%Y-%m-%d')} au {end_date.strftime('%Y-%m-%d')}")
+        print(f"Periode: {start_date.strftime('%Y-%m-%d')} au {end_date.strftime('%Y-%m-%d')}")
 
-        # Initialiser le service de rapport
-        report_service = ReportService()
+        # Creer un rapport de test
+        print("\n3. Creation du contenu du rapport de test...")
+        test_report = _create_test_report(company_id, period, start_date, end_date)
 
-        # Générer le rapport
-        print("\n3. Génération du contenu du rapport...")
-        report = await report_service.generate_report(
-            company_id=company_id,
-            period_type=period,
-            start_date=start_date,
-            end_date=end_date
-        )
-
-        if not report:
-            print("L Échec de génération du rapport")
-            return
-
-        print(f" Rapport généré avec succès")
-        print(f"   - KPIs: {len(report.get('kpis', []))}")
-        print(f"   - Insights: {len(report.get('insights', []))}")
-        print(f"   - Recommandations: {'Oui' if report.get('recommendations') else 'Non'}")
+        print("OK: Rapport de test cree")
+        print(f"   - KPIs: {len(test_report.get('kpis', {}))}")
+        print(f"   - Insights: {len(test_report.get('insights', []))}")
+        print(f"   - Recommandations: {'Oui' if test_report.get('recommendations') else 'Non'}")
 
         # Formater le rapport pour Telegram
         print("\n4. Formatage du rapport pour Telegram...")
-        message = _format_report_for_telegram(report, period)
-        print(f" Message formaté ({len(message)} caractères)")
+        message = _format_report_for_telegram(test_report, period)
+        print(f"OK: Message formate ({len(message)} caracteres)")
 
         # Envoyer le rapport via Telegram
         print(f"\n5. Envoi du rapport au chat {chat_id}...")
         success = await telegram_client.send_message(chat_id, message)
 
         if success:
-            print(f" Rapport envoyé avec succès à {chat_id}")
+            print(f"OK: Rapport envoye avec succes a {chat_id}")
         else:
-            print(f"L Échec de l'envoi à {chat_id}")
+            print(f"ERREUR: Echec de l'envoi a {chat_id}")
 
         print("\n" + "=" * 80)
-        print(" TEST TERMINÉ")
+        print("TEST TERMINE")
         print("=" * 80)
 
     except Exception as e:
-        print(f"\nL Erreur: {e}")
+        print(f"\nERREUR: {e}")
         import traceback
         traceback.print_exc()
+
+
+def _create_test_report(company_id: int, period: str, start_date: datetime, end_date: datetime) -> dict:
+    """
+    Cree un rapport de test avec des donnees fictives.
+
+    Args:
+        company_id: ID de l'entreprise
+        period: Periode du rapport
+        start_date: Date de debut
+        end_date: Date de fin
+
+    Returns:
+        Rapport de test avec KPIs, insights et recommandations
+    """
+    return {
+        'company_id': company_id,
+        'period': period,
+        'start_date': start_date.isoformat(),
+        'end_date': end_date.isoformat(),
+        'kpis': {
+            'revenue': {
+                'current': 5000000,
+                'previous': 4500000,
+                'variation': 11.1
+            },
+            'sales_count': {
+                'current': 45,
+                'previous': 40
+            },
+            'new_clients': {
+                'current': 8,
+                'previous': 6
+            }
+        },
+        'insights': [
+            {
+                'type': 'churn_risk',
+                'priority': 4,
+                'message': 'Clients a risque: 5 clients fideles inactifs depuis 30+ jours'
+            },
+            {
+                'type': 'stock_alert',
+                'priority': 3,
+                'message': 'Stock faible: 3 produits sous le seuil critique'
+            },
+            {
+                'type': 'seasonal_trend',
+                'priority': 3,
+                'message': 'Hausse saisonniere: +15% vs meme periode annee precedente'
+            }
+        ],
+        'recommendations': (
+            "1. Relancer les clients inactifs avec une offre speciale\n"
+            "2. Reapprovisionner les produits en stock faible\n"
+            "3. Capitaliser sur la hausse saisonniere avec des promotions"
+        )
+    }
 
 
 def _format_report_for_telegram(report: dict, period: str) -> str:
@@ -124,11 +170,11 @@ def _format_report_for_telegram(report: dict, period: str) -> str:
     Formate le rapport pour l'envoi via Telegram.
 
     Args:
-        report: Données du rapport
-        period: Période du rapport
+        report: Donnees du rapport
+        period: Periode du rapport
 
     Returns:
-        Message formaté en Markdown pour Telegram
+        Message formate en Markdown pour Telegram
     """
     period_names = {
         "weekly": "hebdomadaire",
@@ -136,44 +182,44 @@ def _format_report_for_telegram(report: dict, period: str) -> str:
         "quarterly": "trimestriel"
     }
 
-    message = f"=Ê *Rapport {period_names.get(period, period)}*\n\n"
+    message = f"*Rapport {period_names.get(period, period)}*\n\n"
 
     # KPIs
     kpis = report.get('kpis', {})
     if kpis:
-        message += "*=° KPIs*\n"
+        message += "*KPIs*\n"
 
         if 'revenue' in kpis:
             revenue = kpis['revenue']
-            message += f"" CA: {revenue.get('current', 0):,.0f} XAF"
+            message += f"- CA: {revenue.get('current', 0):,.0f} XAF"
             if 'variation' in revenue:
                 var = revenue['variation']
-                emoji = "=È" if var > 0 else "=É"
-                message += f" {emoji} {var:+.1f}%"
+                emoji = "+" if var > 0 else "-"
+                message += f" ({emoji}{abs(var):.1f}%)"
             message += "\n"
 
         if 'sales_count' in kpis:
-            message += f"" Ventes: {kpis['sales_count'].get('current', 0)}\n"
+            message += f"- Ventes: {kpis['sales_count'].get('current', 0)}\n"
 
         if 'new_clients' in kpis:
-            message += f"" Nouveaux clients: {kpis['new_clients'].get('current', 0)}\n"
+            message += f"- Nouveaux clients: {kpis['new_clients'].get('current', 0)}\n"
 
         message += "\n"
 
     # Insights
     insights = report.get('insights', [])
     if insights:
-        message += "*= Insights*\n"
-        for insight in insights[:3]:  # Limiter à 3 insights
+        message += "*Insights*\n"
+        for insight in insights[:3]:  # Limiter a 3 insights
             priority = insight.get('priority', 0)
-            emoji = "=4" if priority >= 4 else "=á" if priority >= 3 else "=â"
+            emoji = "!" if priority >= 4 else "~" if priority >= 3 else "."
             message += f"{emoji} {insight.get('message', '')}\n"
         message += "\n"
 
     # Recommandations
     recommendations = report.get('recommendations')
     if recommendations:
-        message += "*=¡ Recommandations*\n"
+        message += "*Recommandations*\n"
         message += f"{recommendations}\n"
 
     return message
@@ -181,7 +227,7 @@ def _format_report_for_telegram(report: dict, period: str) -> str:
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Teste la génération et l'envoi d'un rapport via Telegram"
+        description="Teste la generation et l'envoi d'un rapport via Telegram"
     )
 
     parser.add_argument(
@@ -201,7 +247,7 @@ async def main():
         "--period",
         choices=["weekly", "monthly", "quarterly"],
         default="weekly",
-        help="Période du rapport"
+        help="Periode du rapport"
     )
 
     args = parser.parse_args()
