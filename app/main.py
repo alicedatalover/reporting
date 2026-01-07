@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """
     Gestion du cycle de vie de l'application.
-    
+
     Exécuté au démarrage et à l'arrêt de l'application.
     """
-     # Startup
+    # Startup
     logger.info(
         "Starting Genuka KPI Engine",
         extra={
@@ -36,13 +36,38 @@ async def lifespan(app: FastAPI):
             "debug": settings.DEBUG
         }
     )
-    
+
+    # ========== VALIDATION DE SÉCURITÉ ==========
+    # Vérifier la configuration au démarrage
+    config_warnings = settings.validate_runtime_config()
+    if config_warnings:
+        for warning in config_warnings:
+            logger.warning(warning)
+
+        # En production, les warnings sont critiques
+        if settings.is_production():
+            logger.error(
+                "❌ Configuration de production invalide ! Vérifiez les warnings ci-dessus.",
+                extra={"warnings_count": len(config_warnings)}
+            )
+
+    # Log des features activées
+    logger.info(
+        "Features configuration",
+        extra={
+            "llm_recommendations": settings.ENABLE_LLM_RECOMMENDATIONS,
+            "whatsapp_notifications": settings.ENABLE_WHATSAPP_NOTIFICATIONS,
+            "telegram_notifications": settings.ENABLE_TELEGRAM_NOTIFICATIONS,
+            "cors_origins_count": len(settings.CORS_ORIGINS_LIST)
+        }
+    )
+
     # Initialiser la base de données
     from app.infrastructure.database.connection import init_database
     init_database()
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Genuka KPI Engine")
     await close_database_connection()

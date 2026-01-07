@@ -147,30 +147,156 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     # ==================== VALIDATORS ====================
-    
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str, info) -> str:
+        """
+        Valide que SECRET_KEY est définie et sécurisée.
+
+        CRITIQUE en production !
+        """
+        environment = info.data.get("ENVIRONMENT", "development")
+
+        # Production : SECRET_KEY obligatoire et forte
+        if environment == "production":
+            if not v or v == "change-me-in-production":
+                raise ValueError(
+                    "❌ SECRET_KEY OBLIGATOIRE en production ! "
+                    "Générez une clé forte : python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+            if len(v) < 32:
+                raise ValueError(
+                    "❌ SECRET_KEY trop courte en production ! "
+                    f"Minimum 32 caractères, actuellement {len(v)}"
+                )
+
+        # Développement : Warning si default
+        elif v == "change-me-in-production":
+            import logging
+            logging.warning("⚠️  SECRET_KEY utilise la valeur par défaut (OK en dev, INTERDIT en prod)")
+
+        return v
+
+    @field_validator("GOOGLE_API_KEY")
+    @classmethod
+    def validate_google_api_key(cls, v: str, info) -> str:
+        """Valide GOOGLE_API_KEY si LLM activé"""
+        enable_llm = info.data.get("ENABLE_LLM_RECOMMENDATIONS", True)
+
+        if enable_llm and not v:
+            import logging
+            logging.warning(
+                "⚠️  ENABLE_LLM_RECOMMENDATIONS=True mais GOOGLE_API_KEY vide ! "
+                "Les recommandations utiliseront le fallback."
+            )
+
+        return v
+
+    @field_validator("WHATSAPP_API_TOKEN")
+    @classmethod
+    def validate_whatsapp_token(cls, v: str, info) -> str:
+        """Valide WHATSAPP_API_TOKEN si WhatsApp activé"""
+        enable_wa = info.data.get("ENABLE_WHATSAPP_NOTIFICATIONS", True)
+
+        if enable_wa and not v:
+            import logging
+            logging.warning(
+                "⚠️  ENABLE_WHATSAPP_NOTIFICATIONS=True mais WHATSAPP_API_TOKEN vide ! "
+                "Les notifications WhatsApp échoueront."
+            )
+
+        return v
+
+    @field_validator("TELEGRAM_BOT_TOKEN")
+    @classmethod
+    def validate_telegram_token(cls, v: str, info) -> str:
+        """Valide TELEGRAM_BOT_TOKEN si Telegram activé"""
+        enable_tg = info.data.get("ENABLE_TELEGRAM_NOTIFICATIONS", True)
+
+        if enable_tg and not v:
+            import logging
+            logging.warning(
+                "⚠️  ENABLE_TELEGRAM_NOTIFICATIONS=True mais TELEGRAM_BOT_TOKEN vide ! "
+                "Les notifications Telegram échoueront."
+            )
+
+        return v
+
+    @field_validator("DB_PASSWORD")
+    @classmethod
+    def validate_db_password(cls, v: str, info) -> str:
+        """Valide DB_PASSWORD en production"""
+        environment = info.data.get("ENVIRONMENT", "development")
+
+        if environment == "production" and not v:
+            import logging
+            logging.warning(
+                "⚠️  DB_PASSWORD vide en production ! "
+                "Base de données non sécurisée, FORTEMENT DÉCONSEILLÉ !"
+            )
+
+        return v
+
     @field_validator("GEMINI_TEMPERATURE")
     @classmethod
     def validate_temperature(cls, v: float) -> float:
         """Valide que la température est entre 0 et 1"""
         if not 0 <= v <= 1:
-            raise ValueError("Temperature must be between 0 and 1")
+            raise ValueError("GEMINI_TEMPERATURE doit être entre 0 et 1")
         return v
-    
+
     @field_validator("MAX_INSIGHTS_PER_REPORT")
     @classmethod
     def validate_max_insights(cls, v: int) -> int:
         """Valide le nombre d'insights"""
         if not 1 <= v <= 10:
-            raise ValueError("MAX_INSIGHTS_PER_REPORT must be between 1 and 10")
+            raise ValueError("MAX_INSIGHTS_PER_REPORT doit être entre 1 et 10")
         return v
-    
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def validate_cors_origins(cls, v: str, info) -> str:
+        """Valide les origines CORS en production"""
+        environment = info.data.get("ENVIRONMENT", "development")
+
+        if environment == "production":
+            if "localhost" in v or "127.0.0.1" in v:
+                raise ValueError(
+                    "❌ CORS_ORIGINS contient localhost/127.0.0.1 en production ! "
+                    "Utilisez uniquement les domaines de production (ex: https://app.genuka.com)"
+                )
+
+        return v
+
     def is_production(self) -> bool:
         """Vérifie si on est en production"""
         return self.ENVIRONMENT == "production"
-    
+
     def is_development(self) -> bool:
         """Vérifie si on est en développement"""
         return self.ENVIRONMENT == "development"
+
+    def validate_runtime_config(self) -> list[str]:
+        """
+        Valide la configuration au runtime et retourne les warnings.
+
+        À appeler au démarrage de l'application.
+
+        Returns:
+            Liste de warnings (vide si tout OK)
+        """
+        warnings = []
+
+        # Check Redis en production
+        if self.is_production():
+            if not self.REDIS_PASSWORD:
+                warnings.append("⚠️  REDIS_PASSWORD vide en production (sécurité faible)")
+
+            if self.DEBUG:
+                warnings.append("⚠️  DEBUG=True en production (INTERDIT !)")
+
+        return warnings
 
 
 # Singleton settings
