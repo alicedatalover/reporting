@@ -62,17 +62,10 @@ app = FastAPI(
 
 # ==================== MIDDLEWARE ====================
 
-# CORS
-# En dev, limiter aux origines locales, éviter "*" pour la sécurité
-allowed_origins = (
-    ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000"]
-    if settings.DEBUG
-    else ["https://genuka.com", "https://www.genuka.com", "https://app.genuka.com"]
-)
-
+# CORS - Origines configurées via CORS_ORIGINS dans .env
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=settings.CORS_ORIGINS_LIST,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],

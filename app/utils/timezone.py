@@ -2,14 +2,22 @@
 """
 Gestion centralisée des timezones.
 
-Utilise Africa/Douala pour toutes les opérations de date/heure.
+Utilise la timezone configurée dans settings (CELERY_TIMEZONE).
 """
 
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
-# Timezone par défaut pour l'application
-DEFAULT_TIMEZONE = ZoneInfo("Africa/Douala")
+
+def _get_app_timezone() -> ZoneInfo:
+    """
+    Récupère la timezone depuis settings.
+
+    Returns:
+        ZoneInfo configurée
+    """
+    from app.config import settings
+    return ZoneInfo(settings.CELERY_TIMEZONE)
 
 
 def now_in_timezone() -> datetime:
@@ -17,9 +25,9 @@ def now_in_timezone() -> datetime:
     Retourne l'heure actuelle dans le timezone de l'application.
 
     Returns:
-        datetime avec timezone Africa/Douala
+        datetime avec timezone configurée
     """
-    return datetime.now(DEFAULT_TIMEZONE)
+    return datetime.now(_get_app_timezone())
 
 
 def today_in_timezone() -> date:
@@ -40,10 +48,10 @@ def to_app_timezone(dt: datetime) -> datetime:
         dt: datetime à convertir (peut être naive ou aware)
 
     Returns:
-        datetime dans le timezone Africa/Douala
+        datetime dans le timezone de l'application
     """
     if dt.tzinfo is None:
         # Si naive, assumer qu'il est en UTC
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
-    return dt.astimezone(DEFAULT_TIMEZONE)
+    return dt.astimezone(_get_app_timezone())

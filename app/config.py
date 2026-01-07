@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # ==================== GEMINI AI ====================
     GOOGLE_API_KEY: str = Field(default="", description="Clé API Google Gemini")
     GEMINI_MODEL: str = Field(
-        default="gemini-2.0-flash-exp",
+        default="gemini-2.5-flash",
         description="Modèle Gemini à utiliser"
     )
     GEMINI_MAX_TOKENS: int = Field(default=300, description="Tokens max pour recommandations")
@@ -87,7 +87,13 @@ class Settings(BaseSettings):
         default="json",
         description="Format des logs"
     )
-    
+
+    # ==================== CORS ====================
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000",
+        description="Origines CORS autorisées (séparées par des virgules)"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -127,7 +133,19 @@ class Settings(BaseSettings):
     def CELERY_RESULT_BACKEND_COMPUTED(self) -> str:
         """URL backend Celery (utilise REDIS_URL si non défini)"""
         return self.CELERY_RESULT_BACKEND or self.REDIS_URL
-    
+
+    @property
+    def CORS_ORIGINS_LIST(self) -> list[str]:
+        """
+        Parse les origines CORS depuis la string séparée par des virgules.
+
+        Returns:
+            Liste des origines autorisées
+        """
+        if not self.CORS_ORIGINS:
+            return []
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
     # ==================== VALIDATORS ====================
     
     @field_validator("GEMINI_TEMPERATURE")
