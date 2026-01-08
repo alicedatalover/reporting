@@ -13,7 +13,10 @@ from app.services import ReportService
 from app.api.dependencies import (
     get_report_service,
     validate_company_exists,
-    get_notification_service
+    get_notification_service,
+    rate_limit_standard,
+    rate_limit_strict,
+    rate_limit_permissive
 )
 from app.workers.tasks.report_generation import generate_single_report
 from app.utils.validators import PhoneValidator, ReportValidator, validate_date_string
@@ -24,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[Depends(rate_limit_strict)])
 async def generate_report_manual(
     company_id: str = Body(...),
     frequency: ReportFrequency = Body(default=ReportFrequency.MONTHLY),
@@ -122,7 +125,7 @@ async def generate_report_manual(
     }
 
 
-@router.get("/task/{task_id}")
+@router.get("/task/{task_id}", dependencies=[Depends(rate_limit_permissive)])
 async def get_task_status(task_id: str) -> Dict[str, Any]:
     """
     Récupère le statut d'une tâche de génération de rapport.
@@ -157,7 +160,7 @@ async def get_task_status(task_id: str) -> Dict[str, Any]:
     return response
 
 
-@router.post("/preview")
+@router.post("/preview", dependencies=[Depends(rate_limit_strict)])
 async def preview_report(
     company_id: str = Body(...),
     frequency: ReportFrequency = Body(default=ReportFrequency.MONTHLY),
@@ -235,7 +238,7 @@ async def preview_report(
         )
 
 
-@router.get("/history/{company_id}")
+@router.get("/history/{company_id}", dependencies=[Depends(rate_limit_standard)])
 async def get_report_history(
     company_id: str = Depends(validate_company_exists),
     limit: int = Query(default=20, ge=1, le=100),
@@ -312,7 +315,7 @@ async def get_report_history(
     }
 
 
-@router.get("/stats/global")
+@router.get("/stats/global", dependencies=[Depends(rate_limit_standard)])
 async def get_global_stats() -> Dict[str, Any]:
     """
     Récupère les statistiques globales des rapports.

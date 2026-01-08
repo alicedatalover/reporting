@@ -14,6 +14,7 @@ import logging
 from app.config import settings
 from app.utils.logger import setup_logging
 from app.infrastructure.database.connection import close_database_connection
+from app.infrastructure.cache.redis_client import close_redis_client
 from app.api.v1 import health, companies, configs, reports
 
 # Configurer le logging
@@ -70,6 +71,19 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down Genuka KPI Engine")
+
+    # Fermer les connexions Redis
+    try:
+        await close_redis_client()
+        logger.info("Redis connections closed successfully")
+    except Exception as e:
+        logger.error(
+            "Failed to close Redis connections",
+            extra={"error": str(e)},
+            exc_info=True
+        )
+
+    # Fermer les connexions DB
     await close_database_connection()
 
 

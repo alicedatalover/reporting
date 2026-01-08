@@ -10,6 +10,7 @@ from datetime import datetime, date, timedelta, timezone
 from typing import Optional, Dict, Any
 import logging
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from celery import Task
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,32 +27,46 @@ from app.infrastructure.cache.redis_client import get_redis_client_sync
 
 logger = logging.getLogger(__name__)
 
+# Thread pool pour exécuter les coroutines dans Celery
+_executor = ThreadPoolExecutor(max_workers=10)
 
-class DatabaseTask(Task):
+
+def run_async(coro):
     """
-    Tâche Celery avec support async et gestion DB.
-    
-    Fournit une session DB async pour les tâches.
+    Exécute une coroutine de manière sûre depuis Celery.
+
+    Détecte automatiquement si un event loop existe déjà et choisit
+    la stratégie appropriée:
+    - Si pas de loop: utilise asyncio.run() (standard)
+    - Si loop actif: exécute dans un thread séparé (worker async)
+
+    Args:
+        coro: Coroutine à exécuter
+
+    Returns:
+        Résultat de la coroutine
+
+    Raises:
+        Exception: Toute exception levée par la coroutine
     """
-    
-    _session: Optional[AsyncSession] = None
-    
-    def get_session(self) -> AsyncSession:
-        """Obtient ou crée une session DB."""
-        if self._session is None:
-            self._session = AsyncSessionLocal()
-        return self._session
-    
-    def cleanup_session(self):
-        """Ferme la session DB."""
-        if self._session:
-            asyncio.run(self._session.close())
-            self._session = None
+    try:
+        # Tenter d'obtenir le loop actuel
+        loop = asyncio.get_running_loop()
+        # Si on arrive ici, un loop est déjà actif (worker async)
+        # On doit exécuter dans un thread séparé pour éviter RuntimeError
+        future = _executor.submit(asyncio.run, coro)
+        return future.result()
+    except RuntimeError:
+        # Pas de loop actif, on peut utiliser asyncio.run() normalement
+        return asyncio.run(coro)
+
+
+# NOTE: DatabaseTask removed - race condition with shared class-level _session
+# Each task now manages its own session directly via AsyncSessionLocal()
 
 
 @celery_app.task(
     name="app.workers.tasks.report_generation.generate_scheduled_reports",
-    base=DatabaseTask,
     bind=True,
     max_retries=3,
     default_retry_delay=300  # 5 minutes
@@ -84,9 +99,9 @@ def generate_scheduled_reports(self, frequency: str) -> Dict[str, Any]:
     try:
         # Convertir en enum
         report_frequency = ReportFrequency(frequency)
-        
-        # Exécuter la génération en async
-        result = asyncio.run(
+
+        # Exécuter la génération en async (compatible avec workers async/sync)
+        result = run_async(
             _generate_reports_for_frequency(report_frequency)
         )
         
@@ -120,7 +135,6 @@ def generate_scheduled_reports(self, frequency: str) -> Dict[str, Any]:
 
 @celery_app.task(
     name="app.workers.tasks.report_generation.generate_single_report",
-    base=DatabaseTask,
     bind=True,
     max_retries=2,
     default_retry_delay=60
@@ -210,9 +224,9 @@ def generate_single_report(
         report_frequency = ReportFrequency(frequency)
         delivery_method_enum = DeliveryMethod(delivery_method)
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
-        
-        # Exécuter la génération
-        result = asyncio.run(
+
+        # Exécuter la génération (compatible avec workers async/sync)
+        result = run_async(
             _generate_and_send_report(
                 company_id=company_id,
                 frequency=report_frequency,

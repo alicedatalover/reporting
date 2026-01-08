@@ -79,6 +79,11 @@ class OrderRepository(BaseRepository):
         Returns:
             Liste de commandes (paginée si limit fourni)
         """
+        # Convertir dates en timestamps pour utiliser les index
+        # created_at >= start_date (00:00:00) ET created_at < end_date + 1 jour (00:00:00)
+        from datetime import timedelta
+        end_date_exclusive = end_date + timedelta(days=1)
+
         query = """
             SELECT
                 o.id,
@@ -91,7 +96,8 @@ class OrderRepository(BaseRepository):
                 o.created_at
             FROM orders o
             WHERE o.company_id = :company_id
-              AND DATE(o.created_at) BETWEEN :start_date AND :end_date
+              AND o.created_at >= :start_date
+              AND o.created_at < :end_date_exclusive
               AND o.deleted_at IS NULL
               AND o.status != 'cancelled'
             ORDER BY o.created_at DESC
@@ -100,7 +106,7 @@ class OrderRepository(BaseRepository):
         params = {
             "company_id": company_id,
             "start_date": start_date,
-            "end_date": end_date,
+            "end_date_exclusive": end_date_exclusive,
         }
 
         # Ajouter pagination si limit fourni
@@ -131,30 +137,34 @@ class OrderRepository(BaseRepository):
     ) -> Decimal:
         """
         Calcule le chiffre d'affaires pour une période.
-        
+
         Args:
             company_id: ID de l'entreprise
             start_date: Date de début
             end_date: Date de fin
-        
+
         Returns:
             Montant total des ventes (Decimal)
         """
+        from datetime import timedelta
+        end_date_exclusive = end_date + timedelta(days=1)
+
         query = """
             SELECT COALESCE(SUM(amount), 0) as total_revenue
             FROM orders
             WHERE company_id = :company_id
-              AND DATE(created_at) BETWEEN :start_date AND :end_date
+              AND created_at >= :start_date
+              AND created_at < :end_date_exclusive
               AND deleted_at IS NULL
               AND status != 'cancelled'
         """
-        
+
         result = await self._execute_scalar(
             query,
             {
                 "company_id": company_id,
                 "start_date": start_date,
-                "end_date": end_date
+                "end_date_exclusive": end_date_exclusive
             }
         )
         
@@ -168,30 +178,34 @@ class OrderRepository(BaseRepository):
     ) -> int:
         """
         Compte le nombre de ventes pour une période.
-        
+
         Args:
             company_id: ID de l'entreprise
             start_date: Date de début
             end_date: Date de fin
-        
+
         Returns:
             Nombre de commandes
         """
+        from datetime import timedelta
+        end_date_exclusive = end_date + timedelta(days=1)
+
         query = """
             SELECT COUNT(*) as total_sales
             FROM orders
             WHERE company_id = :company_id
-              AND DATE(created_at) BETWEEN :start_date AND :end_date
+              AND created_at >= :start_date
+              AND created_at < :end_date_exclusive
               AND deleted_at IS NULL
               AND status != 'cancelled'
         """
-        
+
         return await self._execute_scalar(
             query,
             {
                 "company_id": company_id,
                 "start_date": start_date,
-                "end_date": end_date
+                "end_date_exclusive": end_date_exclusive
             }
         ) or 0
     
@@ -231,18 +245,21 @@ class OrderRepository(BaseRepository):
     ) -> List[Dict[str, Any]]:
         """
         Récupère les produits les plus vendus pour une période.
-        
+
         Args:
             company_id: ID de l'entreprise
             start_date: Date de début
             end_date: Date de fin
             limit: Nombre de produits à retourner
-        
+
         Returns:
             Liste de produits avec quantités vendues
         """
+        from datetime import timedelta
+        end_date_exclusive = end_date + timedelta(days=1)
+
         query = """
-            SELECT 
+            SELECT
                 op.product_variant_id,
                 op.title as product_name,
                 SUM(op.quantity) as total_quantity,
@@ -251,20 +268,21 @@ class OrderRepository(BaseRepository):
             FROM order_product op
             INNER JOIN orders o ON op.order_id = o.id
             WHERE o.company_id = :company_id
-              AND DATE(o.created_at) BETWEEN :start_date AND :end_date
+              AND o.created_at >= :start_date
+              AND o.created_at < :end_date_exclusive
               AND o.deleted_at IS NULL
               AND o.status != 'cancelled'
             GROUP BY op.product_variant_id, op.title
             ORDER BY total_quantity DESC
             LIMIT :limit
         """
-        
+
         return await self._execute_query(
             query,
             {
                 "company_id": company_id,
                 "start_date": start_date,
-                "end_date": end_date,
+                "end_date_exclusive": end_date_exclusive,
                 "limit": limit
             }
         )
@@ -286,13 +304,17 @@ class OrderRepository(BaseRepository):
         Returns:
             Dict avec 'total_revenue' (Decimal) et 'total_sales' (int)
         """
+        from datetime import timedelta
+        end_date_exclusive = end_date + timedelta(days=1)
+
         query = """
             SELECT
                 COALESCE(SUM(amount), 0) as total_revenue,
                 COUNT(*) as total_sales
             FROM orders
             WHERE company_id = :company_id
-              AND DATE(created_at) BETWEEN :start_date AND :end_date
+              AND created_at >= :start_date
+              AND created_at < :end_date_exclusive
               AND deleted_at IS NULL
               AND status != 'cancelled'
         """
@@ -302,7 +324,7 @@ class OrderRepository(BaseRepository):
             {
                 "company_id": company_id,
                 "start_date": start_date,
-                "end_date": end_date
+                "end_date_exclusive": end_date_exclusive
             }
         )
 
