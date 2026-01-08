@@ -6,8 +6,8 @@ Gère toutes les requêtes liées aux ventes et commandes.
 """
 
 from typing import Dict, List, Optional, Any
-from datetime import date
-from decimal import Decimal
+from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 import logging
 
 from app.infrastructure.repositories.base import BaseRepository
@@ -81,7 +81,6 @@ class OrderRepository(BaseRepository):
         """
         # Convertir dates en timestamps pour utiliser les index
         # created_at >= start_date (00:00:00) ET created_at < end_date + 1 jour (00:00:00)
-        from datetime import timedelta
         end_date_exclusive = end_date + timedelta(days=1)
 
         query = """
@@ -146,7 +145,6 @@ class OrderRepository(BaseRepository):
         Returns:
             Montant total des ventes (Decimal)
         """
-        from datetime import timedelta
         end_date_exclusive = end_date + timedelta(days=1)
 
         query = """
@@ -167,8 +165,23 @@ class OrderRepository(BaseRepository):
                 "end_date_exclusive": end_date_exclusive
             }
         )
-        
-        return Decimal(str(result)) if result else Decimal("0")
+
+        # Conversion robuste avec gestion d'erreurs
+        if not result:
+            return Decimal("0")
+
+        try:
+            return Decimal(str(result))
+        except (TypeError, ValueError, InvalidOperation) as e:
+            logger.error(
+                "Failed to convert revenue to Decimal",
+                extra={
+                    "company_id": company_id,
+                    "result": result,
+                    "error": str(e)
+                }
+            )
+            return Decimal("0")
     
     async def count_sales_for_period(
         self,
@@ -187,7 +200,6 @@ class OrderRepository(BaseRepository):
         Returns:
             Nombre de commandes
         """
-        from datetime import timedelta
         end_date_exclusive = end_date + timedelta(days=1)
 
         query = """
@@ -255,7 +267,6 @@ class OrderRepository(BaseRepository):
         Returns:
             Liste de produits avec quantités vendues
         """
-        from datetime import timedelta
         end_date_exclusive = end_date + timedelta(days=1)
 
         query = """
@@ -304,7 +315,6 @@ class OrderRepository(BaseRepository):
         Returns:
             Dict avec 'total_revenue' (Decimal) et 'total_sales' (int)
         """
-        from datetime import timedelta
         end_date_exclusive = end_date + timedelta(days=1)
 
         query = """
@@ -328,13 +338,40 @@ class OrderRepository(BaseRepository):
             }
         )
 
-        if result:
-            return {
-                "total_revenue": Decimal(str(result['total_revenue'])),
-                "total_sales": int(result['total_sales'])
-            }
-        else:
+        if not result:
             return {
                 "total_revenue": Decimal("0"),
                 "total_sales": 0
             }
+
+        # Conversion robuste avec gestion d'erreurs
+        try:
+            revenue = Decimal(str(result['total_revenue']))
+        except (TypeError, ValueError, InvalidOperation) as e:
+            logger.error(
+                "Failed to convert revenue to Decimal in calculate_sales_kpis",
+                extra={
+                    "company_id": company_id,
+                    "revenue_value": result.get('total_revenue'),
+                    "error": str(e)
+                }
+            )
+            revenue = Decimal("0")
+
+        try:
+            sales_count = int(result['total_sales'])
+        except (TypeError, ValueError) as e:
+            logger.error(
+                "Failed to convert sales count to int",
+                extra={
+                    "company_id": company_id,
+                    "sales_value": result.get('total_sales'),
+                    "error": str(e)
+                }
+            )
+            sales_count = 0
+
+        return {
+            "total_revenue": revenue,
+            "total_sales": sales_count
+        }

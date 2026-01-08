@@ -10,12 +10,15 @@ from datetime import datetime, date, timedelta, timezone
 from typing import Optional, Dict, Any
 import logging
 import asyncio
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from celery import Task
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from app.utils.timezone import today_in_timezone
+from app.utils.date_utils import calculate_period_dates
 from app.workers.celery_app import celery_app
 from app.infrastructure.database.connection import AsyncSessionLocal
 from app.services import ReportService, NotificationService, CompanyService
@@ -421,7 +424,7 @@ async def _generate_and_send_report(
             
     except Exception as e:
         execution_time = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
-        
+
         if session is not None:
             try:
                 await _save_report_history(
@@ -435,12 +438,20 @@ async def _generate_and_send_report(
                     execution_time_ms=execution_time,
                     error_message=str(e)
                 )
+                # CRITIQUE: Commit explicite pour sauvegarder l'erreur
+                # avant que le context manager ne fasse un rollback
+                await session.commit()
             except Exception as save_error:
                 logger.error(
                     "Failed to save error to history",
                     extra={"error": str(save_error)},
                     exc_info=True
                 )
+                # Rollback en cas d'erreur de sauvegarde
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass  # Ignorer erreur de rollback
 
         raise
 
@@ -458,42 +469,26 @@ async def _save_report_history(
     """
     Enregistre l'historique d'un rapport dans la base.
     """
-    
-    import uuid
-    from sqlalchemy import text
-    
     history_id = str(uuid.uuid4()).replace('-', '')[:26]
     
     # Extraire les infos du rapport
     if report_data:
         start_date, end_date = _parse_period_range(report_data.period_range)
         
-        # Si parsing échoue, utiliser des valeurs par défaut
+        # Si parsing échoue, calculer les dates par défaut
         if not start_date or not end_date:
-            logger.warning("Failed to parse dates, using defaults")
+            logger.warning("Failed to parse dates, using calculated defaults")
             end_date = today_in_timezone()
-            if frequency == ReportFrequency.WEEKLY:
-                start_date = end_date - timedelta(days=6)
-            elif frequency == ReportFrequency.MONTHLY:
-                start_date = end_date.replace(day=1)
-            else:  # QUARTERLY
-                quarter_month = ((end_date.month - 1) // 3) * 3 + 1
-                start_date = end_date.replace(month=quarter_month, day=1)
+            start_date, end_date = calculate_period_dates(frequency, end_date)
 
-        kpis_json = report_data.kpis.model_dump_json() if report_data.kpis else None
-        insights_json = [i.model_dump() for i in report_data.insights] if report_data.insights else None
-        recommendations = report_data.recommendations
+        kpis_json = report_data.kpis.model_dump_json() if report_data and report_data.kpis else None
+        insights_json = [i.model_dump() for i in report_data.insights] if report_data and report_data.insights else None
+        recommendations = report_data.recommendations if report_data else None
     else:
-        # Valeurs par défaut si pas de report_data
+        # Calculer les dates par défaut si pas de report_data
         end_date = today_in_timezone()
-        if frequency == ReportFrequency.WEEKLY:
-            start_date = end_date - timedelta(days=6)
-        elif frequency == ReportFrequency.MONTHLY:
-            start_date = end_date.replace(day=1)
-        else:  # QUARTERLY
-            quarter_month = ((end_date.month - 1) // 3) * 3 + 1
-            start_date = end_date.replace(month=quarter_month, day=1)
-        
+        start_date, end_date = calculate_period_dates(frequency, end_date)
+
         kpis_json = insights_json = recommendations = None
     
     query = """
@@ -548,9 +543,10 @@ async def _save_report_history(
             "execution_time_ms": execution_time_ms
         }
     )
-    
-    await session.commit()
-    
+
+    # NOTE: Pas de commit ici - laissé au context manager appelant
+    # pour gérer correctement les transactions
+
     logger.info(
         "Report history saved",
         extra={
@@ -565,41 +561,81 @@ async def _save_report_history(
 
 def _parse_period_range(period_range: str) -> tuple[Optional[date], Optional[date]]:
     """
-    Parse une période au format "DD/MM - DD/MM/YYYY".
-    
+    Parse une période au format "DD/MM - DD/MM/YYYY" de manière robuste.
+
     Args:
         period_range: Période formatée
-    
+
     Returns:
-        Tuple (start_date, end_date)
+        Tuple (start_date, end_date), ou (None, None) si parsing échoue
+
+    Example:
+        >>> _parse_period_range("01/07 - 31/07/2025")
+        (date(2025, 7, 1), date(2025, 7, 31))
     """
+    if not period_range or not isinstance(period_range, str):
+        logger.warning(f"Invalid period_range type: {type(period_range)}")
+        return None, None
+
     try:
         # Format attendu : "01/07 - 31/07/2025"
-        parts = period_range.split(" - ")
+        # Normaliser les espaces multiples
+        normalized = " ".join(period_range.split())
+        parts = normalized.split(" - ")
+
         if len(parts) != 2:
-            logger.warning(f"Invalid period_range format: {period_range}")
+            logger.warning(f"Invalid period_range format: '{period_range}' (expected 'DD/MM - DD/MM/YYYY')")
             return None, None
-        
+
         start_str, end_str = parts
-        
+
         # Parse end date (format: DD/MM/YYYY)
-        end_date = datetime.strptime(end_str.strip(), "%d/%m/%Y").date()
-        
+        try:
+            end_date = datetime.strptime(end_str.strip(), "%d/%m/%Y").date()
+        except ValueError as e:
+            logger.warning(f"Invalid end date format '{end_str}': {e}")
+            return None, None
+
         # Parse start date (format: DD/MM, même année que end)
         start_parts = start_str.strip().split("/")
         if len(start_parts) != 2:
-            logger.warning(f"Invalid start date format: {start_str}")
+            logger.warning(f"Invalid start date format '{start_str}' (expected 'DD/MM')")
             return None, None
-            
-        start_day = int(start_parts[0])
-        start_month = int(start_parts[1])
-        
-        # Utiliser l'année de end_date
-        start_date = date(end_date.year, start_month, start_day)
-        
+
+        try:
+            start_day = int(start_parts[0])
+            start_month = int(start_parts[1])
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Invalid day/month in '{start_str}': {e}")
+            return None, None
+
+        # Valider les plages
+        if not (1 <= start_day <= 31):
+            logger.warning(f"Invalid day {start_day} (must be 1-31)")
+            return None, None
+
+        if not (1 <= start_month <= 12):
+            logger.warning(f"Invalid month {start_month} (must be 1-12)")
+            return None, None
+
+        # Créer la date avec gestion d'erreur (ex: 31/02 invalide)
+        try:
+            start_date = date(end_date.year, start_month, start_day)
+        except ValueError as e:
+            logger.warning(f"Invalid date combination ({start_day}/{start_month}/{end_date.year}): {e}")
+            return None, None
+
+        # Vérifier cohérence (start doit être avant ou égal à end)
+        if start_date > end_date:
+            logger.warning(f"Start date {start_date} is after end date {end_date}")
+            return None, None
+
         logger.debug(f"Parsed period: {start_date} to {end_date}")
         return start_date, end_date
-        
+
     except Exception as e:
-        logger.error(f"Failed to parse period_range '{period_range}': {e}")
+        logger.error(
+            f"Unexpected error parsing period_range '{period_range}': {e}",
+            exc_info=True
+        )
         return None, None
