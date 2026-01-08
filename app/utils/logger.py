@@ -8,7 +8,7 @@ Supporte les formats JSON (production) et texte (développement).
 import logging
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 from pythonjsonlogger import jsonlogger
 
@@ -23,7 +23,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
         super().add_fields(log_record, record, message_dict)
         
         # Timestamp ISO 8601
-        log_record['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+        log_record['timestamp'] = datetime.now(timezone.utc).isoformat() + 'Z'
         
         # Environnement
         log_record['environment'] = settings.ENVIRONMENT

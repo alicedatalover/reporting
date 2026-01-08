@@ -6,7 +6,7 @@ Contient toutes les tâches liées à la génération et l'envoi
 automatique des rapports d'activité.
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional, Dict, Any
 import logging
 import asyncio
@@ -231,46 +231,63 @@ async def _generate_reports_for_frequency(
         total = len(companies)
         success = 0
         failed = 0
-        
+
         logger.info(
             f"Found {total} companies for {frequency.value} reports"
         )
-        
-        for company in companies:
-            company_id = company['id']
-            recipient = company.get('contact_phone')
-            
-            if not recipient:
-                logger.warning(
-                    "No contact phone for company",
-                    extra={"company_id": company_id}
-                )
+
+        # Paralléliser la génération de rapports avec un semaphore pour limiter la concurrence
+        # (évite de surcharger la DB, Gemini API, et WhatsApp/Telegram APIs)
+        MAX_CONCURRENT_REPORTS = 5  # Limite à 5 rapports en parallèle
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_REPORTS)
+
+        async def process_company(company: Dict[str, Any]) -> Dict[str, str]:
+            """Traite un rapport pour une company avec limitation de concurrence"""
+            async with semaphore:
+                company_id = company['id']
+                recipient = company.get('contact_phone')
+
+                if not recipient:
+                    logger.warning(
+                        "No contact phone for company",
+                        extra={"company_id": company_id}
+                    )
+                    return {"status": "failed", "company_id": company_id, "reason": "no_phone"}
+
+                try:
+                    # Générer et envoyer le rapport
+                    result = await _generate_and_send_report(
+                        company_id=company_id,
+                        frequency=frequency,
+                        recipient=recipient,
+                        delivery_method=DeliveryMethod.WHATSAPP  # Production
+                    )
+                    return result
+
+                except Exception as e:
+                    logger.error(
+                        "Failed to generate report for company",
+                        extra={
+                            "company_id": company_id,
+                            "error": str(e)
+                        },
+                        exc_info=True
+                    )
+                    return {"status": "failed", "company_id": company_id, "error": str(e)}
+
+        # Exécuter tous les rapports en parallèle (avec semaphore pour limiter la concurrence)
+        results = await asyncio.gather(
+            *[process_company(company) for company in companies],
+            return_exceptions=True
+        )
+
+        # Compter les succès/échecs
+        for result in results:
+            if isinstance(result, Exception):
                 failed += 1
-                continue
-            
-            try:
-                # Générer et envoyer le rapport
-                result = await _generate_and_send_report(
-                    company_id=company_id,
-                    frequency=frequency,
-                    recipient=recipient,
-                    delivery_method=DeliveryMethod.WHATSAPP  # Production
-                )
-                
-                if result['status'] == 'success':
-                    success += 1
-                else:
-                    failed += 1
-                    
-            except Exception as e:
-                logger.error(
-                    "Failed to generate report for company",
-                    extra={
-                        "company_id": company_id,
-                        "error": str(e)
-                    },
-                    exc_info=True
-                )
+            elif isinstance(result, dict) and result.get('status') == 'success':
+                success += 1
+            else:
                 failed += 1
         
         return {
@@ -290,7 +307,7 @@ async def _generate_and_send_report(
 ) -> Dict[str, Any]:
     """Génère et envoie un rapport pour une entreprise."""
 
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     session = None
 
     try:
@@ -325,7 +342,7 @@ async def _generate_and_send_report(
             )
             
             # 5. Enregistrer dans l'historique
-            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            execution_time = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
             
             await _save_report_history(
                 session=session,
@@ -349,7 +366,7 @@ async def _generate_and_send_report(
             }
             
     except Exception as e:
-        execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        execution_time = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         
         if session is not None:
             try:

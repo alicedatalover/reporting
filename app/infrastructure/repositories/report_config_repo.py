@@ -67,7 +67,7 @@ class ReportConfigRepository(BaseRepository):
             Configuration ou None
         """
         query = f"""
-            SELECT 
+            SELECT
                 id,
                 company_id,
                 report_frequency,
@@ -79,7 +79,7 @@ class ReportConfigRepository(BaseRepository):
                 created_at,
                 updated_at
             FROM report_configs
-            WHERE {self._apply_collation_cast('company_id')} = {self._apply_collation_cast(':company_id')}
+            WHERE {self._apply_collation_cast('company_id')} = :company_id
         """
         
         return await self._fetch_one(query, {"company_id": company_id})
@@ -200,7 +200,7 @@ class ReportConfigRepository(BaseRepository):
         query = f"""
             UPDATE report_configs
             SET {', '.join(update_fields)}
-            WHERE {self._apply_collation_cast('company_id')} = {self._apply_collation_cast(':company_id')}
+            WHERE {self._apply_collation_cast('company_id')} = :company_id
         """
         
         from sqlalchemy import text
@@ -237,7 +237,7 @@ class ReportConfigRepository(BaseRepository):
             UPDATE report_configs
             SET last_sent_at = :sent_at,
                 updated_at = NOW()
-            WHERE {self._apply_collation_cast('company_id')} = {self._apply_collation_cast(':company_id')}
+            WHERE {self._apply_collation_cast('company_id')} = :company_id
         """
         
         from sqlalchemy import text
@@ -262,7 +262,7 @@ class ReportConfigRepository(BaseRepository):
         """
         query = f"""
             DELETE FROM report_configs
-            WHERE {self._apply_collation_cast('company_id')} = {self._apply_collation_cast(':company_id')}
+            WHERE {self._apply_collation_cast('company_id')} = :company_id
         """
         
         from sqlalchemy import text

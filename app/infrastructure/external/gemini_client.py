@@ -94,9 +94,11 @@ class GeminiClient:
                     "prompt_length": len(prompt)
                 }
             )
-            
-            # Appel synchrone (Gemini SDK n'est pas async nativement)
-            response = self.model.generate_content(
+
+            # Appel synchrone via asyncio.to_thread pour ne pas bloquer l'event loop
+            import asyncio
+            response = await asyncio.to_thread(
+                self.model.generate_content,
                 prompt,
                 generation_config=generation_config
             )
@@ -137,8 +139,10 @@ class GeminiClient:
             True si connexion OK, False sinon
         """
         try:
-            # Prompt simple et sûr
-            response = self.model.generate_content(
+            # Prompt simple et sûr (appel via asyncio.to_thread)
+            import asyncio
+            response = await asyncio.to_thread(
+                self.model.generate_content,
                 "What is 2+2? Answer with just the number.",
                 generation_config=genai.types.GenerationConfig(
                     max_output_tokens=10,
