@@ -34,7 +34,8 @@ services:
     volumes:
       - ./app:/app/app:ro
       - ./logs:/app/logs
-      - ./.env:/app/.env:ro        # ⭐ AJOUT CRUCIAL
+      # .env est chargé via env_file, pas besoin de le monter
+      # - ./.env:/app/.env:ro
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -63,7 +64,8 @@ services:
     volumes:
       - ./app:/app/app:ro
       - ./logs:/app/logs
-      - ./.env:/app/.env:ro        # ⭐ AJOUT CRUCIAL
+      # .env est chargé via env_file, pas besoin de le monter
+      # - ./.env:/app/.env:ro
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping"]
@@ -93,7 +95,8 @@ services:
       - ./app:/app/app:ro
       - ./logs:/app/logs
       - beat_schedule:/app/schedule
-      - ./.env:/app/.env:ro        # ⭐ AJOUT CRUCIAL
+      # .env est chargé via env_file, pas besoin de le monter
+      # - ./.env:/app/.env:ro
     command: celery -A app.workers.celery_app beat --loglevel=info
     networks:
       - genuka-network
