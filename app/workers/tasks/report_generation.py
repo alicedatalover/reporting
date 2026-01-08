@@ -21,6 +21,8 @@ from app.services import ReportService, NotificationService, CompanyService
 from app.domain.enums import ReportFrequency, DeliveryMethod, ReportStatus
 from app.infrastructure.repositories import ReportConfigRepository
 from app.config import settings
+from app.utils.idempotency import SyncIdempotencyManager, generate_idempotency_key
+from app.infrastructure.cache.redis_client import get_redis_client_sync
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +166,45 @@ def generate_single_report(
             "task_id": self.request.id
         }
     )
-    
+
+    # ========== IDEMPOTENCE CHECK ==========
+    # Vérifier si ce rapport a déjà été généré récemment (dernière heure)
+    # pour éviter les duplications en cas de retry ou d'appels multiples
+    try:
+        redis_client = get_redis_client_sync()
+        idempotency_manager = SyncIdempotencyManager(redis_client)
+
+        # Générer une clé unique basée sur les paramètres
+        idem_key = generate_idempotency_key(company_id, frequency, end_date or "latest")
+
+        # Vérifier si c'est un duplicata (TTL: 1h)
+        if idempotency_manager.is_duplicate("generate_report", idem_key, ttl_seconds=3600):
+            logger.warning(
+                "Skipping duplicate report generation",
+                extra={
+                    "company_id": company_id,
+                    "frequency": frequency,
+                    "idempotency_key": idem_key,
+                    "task_id": self.request.id
+                }
+            )
+            return {
+                "status": "skipped",
+                "reason": "duplicate",
+                "company_id": company_id,
+                "idempotency_key": idem_key
+            }
+
+    except Exception as e:
+        # Si Redis échoue, on continue quand même (fail-safe)
+        logger.warning(
+            "Idempotency check failed, continuing anyway",
+            extra={
+                "company_id": company_id,
+                "error": str(e)
+            }
+        )
+
     try:
         # Convertir les paramètres
         report_frequency = ReportFrequency(frequency)

@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 import logging
 
 from app.config import Settings
+from app.utils.retry import async_retry
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,11 @@ class TelegramClient:
         
         logger.info("Telegram client initialized")
     
+    @async_retry(
+        max_attempts=3,
+        initial_delay=1.0,
+        exceptions=(httpx.NetworkError, httpx.TimeoutException, httpx.HTTPStatusError)
+    )
     async def send_message(
         self,
         chat_id: str,
@@ -145,6 +151,11 @@ class TelegramClient:
             )
             return False
     
+    @async_retry(
+        max_attempts=3,
+        initial_delay=1.0,
+        exceptions=(httpx.NetworkError, httpx.TimeoutException, httpx.HTTPStatusError)
+    )
     async def send_document(
         self,
         chat_id: str,

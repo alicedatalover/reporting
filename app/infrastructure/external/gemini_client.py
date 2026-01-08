@@ -10,6 +10,7 @@ from typing import Optional
 import logging
 
 from app.config import Settings
+from app.utils.retry import async_retry
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,12 @@ class GeminiClient:
             extra={"model": self.model_name}
         )
     
+    @async_retry(
+        max_attempts=3,
+        initial_delay=2.0,
+        max_delay=10.0,
+        exceptions=(Exception,)  # Catch toutes exceptions Gemini (API errors, network, etc.)
+    )
     async def generate_recommendations(
         self,
         prompt: str,
