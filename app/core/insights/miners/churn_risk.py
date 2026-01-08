@@ -13,6 +13,7 @@ from app.core.insights.base import AbstractInsightMiner
 from app.domain.models import InsightModel
 from app.domain.enums import InsightType
 from app.infrastructure.repositories.customer_repo import CustomerRepository
+from app.config import settings
 
 
 class ChurnRiskMiner(AbstractInsightMiner):
@@ -30,19 +31,19 @@ class ChurnRiskMiner(AbstractInsightMiner):
         self,
         customer_repo: CustomerRepository,
         min_orders: int = 3,
-        inactive_days: int = 45
+        inactive_days: Optional[int] = None
     ):
         """
         Initialise le miner.
-        
+
         Args:
             customer_repo: Repository des clients
             min_orders: Nombre min de commandes pour être "fidèle"
-            inactive_days: Jours d'inactivité pour être "à risque"
+            inactive_days: Jours d'inactivité pour être "à risque" (défaut: depuis config)
         """
         self.customer_repo = customer_repo
         self.min_orders = min_orders
-        self.inactive_days = inactive_days
+        self.inactive_days = inactive_days or settings.CHURN_INACTIVE_DAYS
     
     @property
     def name(self) -> str:

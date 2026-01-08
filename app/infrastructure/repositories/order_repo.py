@@ -57,23 +57,30 @@ class OrderRepository(BaseRepository):
         self,
         company_id: str,
         start_date: date,
-        end_date: date
+        end_date: date,
+        limit: Optional[int] = 10000,
+        offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
-        Récupère toutes les commandes d'une entreprise pour une période.
-        
+        Récupère les commandes d'une entreprise pour une période.
+
         Exclut les commandes supprimées (soft delete) et annulées.
-        
+
+        NOTE: Cette méthode n'est actuellement pas utilisée dans le code.
+        Les KPIs sont calculés via calculate_sales_kpis() qui utilise des agrégations SQL.
+
         Args:
             company_id: ID de l'entreprise
             start_date: Date de début (incluse)
             end_date: Date de fin (incluse)
-        
+            limit: Nombre max de résultats (défaut: 10000, None = pas de limite)
+            offset: Décalage pour pagination (défaut: 0)
+
         Returns:
-            Liste de commandes
+            Liste de commandes (paginée si limit fourni)
         """
         query = """
-            SELECT 
+            SELECT
                 o.id,
                 o.company_id,
                 o.customer_id,
@@ -89,15 +96,20 @@ class OrderRepository(BaseRepository):
               AND o.status != 'cancelled'
             ORDER BY o.created_at DESC
         """
-        
-        orders = await self._execute_query(
-            query,
-            {
-                "company_id": company_id,
-                "start_date": start_date,
-                "end_date": end_date
-            }
-        )
+
+        params = {
+            "company_id": company_id,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+
+        # Ajouter pagination si limit fourni
+        if limit is not None:
+            query += " LIMIT :limit OFFSET :offset"
+            params["limit"] = limit
+            params["offset"] = offset
+
+        orders = await self._execute_query(query, params)
         
         logger.debug(
             "Fetched orders for period",

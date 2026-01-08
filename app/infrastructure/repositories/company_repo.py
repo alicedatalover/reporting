@@ -119,6 +119,10 @@ class CompanyRepository(BaseRepository):
                     if isinstance(result['metadata'], str) \
                     else result['metadata']
             except json.JSONDecodeError:
+                logger.warning(
+                    "Failed to parse company metadata",
+                    extra={"company_id": company_id}
+                )
                 result['metadata'] = {}
         
         return result

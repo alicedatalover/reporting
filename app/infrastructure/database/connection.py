@@ -49,7 +49,7 @@ def create_engine() -> AsyncEngine:
         "poolclass": AsyncAdaptedQueuePool,
         "pool_size": 20,  # Augmenté de 10 à 20
         "max_overflow": 10,  # Augmenté de 5 à 10 (max 30 connexions)
-        "pool_pre_ping": False,  # Désactivé pour Celery
+        "pool_pre_ping": True,  # Activé pour détecter les connexions mortes
         "pool_recycle": 1800,
         "pool_timeout": 30,
         "echo": settings.DEBUG,

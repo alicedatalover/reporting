@@ -16,7 +16,7 @@ from app.api.dependencies import (
     get_notification_service
 )
 from app.workers.tasks.report_generation import generate_single_report
-from app.utils.validators import PhoneValidator, ReportValidator
+from app.utils.validators import PhoneValidator, ReportValidator, validate_date_string
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 logger = logging.getLogger(__name__)
@@ -74,15 +74,7 @@ async def generate_report_manual(
         recipient = normalized_phone or recipient
     
     # Valider la date si fournie
-    end_date_obj = None
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid date format: {end_date}. Use YYYY-MM-DD"
-            )
+    end_date_obj = validate_date_string(end_date, "end_date")
     
     # Déclencher la tâche Celery
     try:
@@ -199,16 +191,8 @@ async def preview_report(
     """
     
     # Valider la date si fournie
-    end_date_obj = None
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid date format: {end_date}. Use YYYY-MM-DD"
-            )
-    
+    end_date_obj = validate_date_string(end_date, "end_date")
+
     try:
         # Générer le rapport
         report_data = await service.generate_report(

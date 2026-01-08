@@ -11,6 +11,7 @@ import logging
 from app.domain.models import ReportData
 from app.domain.enums import DeliveryMethod
 from app.utils.formatters import WhatsAppFormatter
+from app.utils.validators import clean_telegram_chat_id
 from app.infrastructure.external.whatsapp_client import WhatsAppClient
 from app.infrastructure.external.telegram_client import TelegramClient
 from app.config import settings
@@ -200,15 +201,11 @@ class NotificationService:
             return False
         
         try:
-            # Nettoyer le chat_id
-            cleaned_chat_id = chat_id.replace("+", "").replace(" ", "").replace("-", "")
-            
-            # Si ça commence par 237, enlever
-            if cleaned_chat_id.startswith("237"):
-                logger.warning(f"Removing 237 prefix from {chat_id}")
-                cleaned_chat_id = cleaned_chat_id[3:]
-            
-            logger.info(f"Sending to cleaned chat_id: {cleaned_chat_id}")
+            # Nettoyer et normaliser le chat_id
+            cleaned_chat_id = clean_telegram_chat_id(chat_id)
+
+            if cleaned_chat_id != chat_id:
+                logger.info(f"Normalized chat_id from {chat_id} to {cleaned_chat_id}")
             
             success = await self.telegram_client.send_message(
                 chat_id=cleaned_chat_id,

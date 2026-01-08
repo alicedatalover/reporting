@@ -77,7 +77,17 @@ class Settings(BaseSettings):
         default=3,
         description="Nombre max d'insights par rapport"
     )
-    
+
+    # ==================== BUSINESS LOGIC ====================
+    CHURN_INACTIVE_DAYS: int = Field(
+        default=45,
+        description="Nombre de jours d'inactivité pour considérer un client en risque de churn"
+    )
+    STOCK_ALERT_ESTIMATED_LOST_SALES_PER_PRODUCT: int = Field(
+        default=5,
+        description="Nombre estimé de ventes perdues par produit en rupture de stock"
+    )
+
     # ==================== LOGGING ====================
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",

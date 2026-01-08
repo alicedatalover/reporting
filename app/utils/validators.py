@@ -71,29 +71,92 @@ class PhoneValidator:
 
 class ReportValidator:
     """Validateur pour les données de rapport."""
-    
+
     @staticmethod
     def validate_frequency(frequency: str) -> bool:
         """
         Valide une fréquence de rapport.
-        
+
         Args:
             frequency: Fréquence à valider
-        
+
         Returns:
             True si valide
         """
         return frequency in ['weekly', 'monthly', 'quarterly']
-    
+
     @staticmethod
     def validate_delivery_method(method: str) -> bool:
         """
         Valide une méthode de livraison.
-        
+
         Args:
             method: Méthode à valider
-        
+
         Returns:
             True si valide
         """
         return method in ['whatsapp', 'telegram', 'email']
+
+
+def validate_date_string(
+    date_str: Optional[str],
+    param_name: str = "date"
+) -> Optional['date']:
+    """
+    Valide et convertit une chaîne de date au format YYYY-MM-DD.
+
+    Args:
+        date_str: Chaîne de date à valider (ou None)
+        param_name: Nom du paramètre pour les messages d'erreur
+
+    Returns:
+        Objet date si valide, None si date_str est None
+
+    Raises:
+        HTTPException: Si le format de date est invalide
+
+    Example:
+        >>> validate_date_string("2024-01-15", "end_date")
+        date(2024, 1, 15)
+    """
+    from datetime import datetime, date
+    from fastapi import HTTPException, status
+
+    if not date_str:
+        return None
+
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid date format for {param_name}: {date_str}. Use YYYY-MM-DD"
+        )
+
+
+def clean_telegram_chat_id(chat_id: str) -> str:
+    """
+    Nettoie et normalise un chat_id Telegram.
+
+    - Supprime les caractères +, espace, tiret
+    - Retire le préfixe 237 (Cameroun) si présent
+
+    Args:
+        chat_id: ID du chat Telegram (numéro de téléphone)
+
+    Returns:
+        Chat ID nettoyé
+
+    Example:
+        >>> clean_telegram_chat_id("+237 6 12-34-56-78")
+        "612345678"
+    """
+    # Nettoyer les caractères spéciaux
+    cleaned = chat_id.replace("+", "").replace(" ", "").replace("-", "")
+
+    # Retirer le préfixe 237 si présent
+    if cleaned.startswith("237"):
+        cleaned = cleaned[3:]
+
+    return cleaned

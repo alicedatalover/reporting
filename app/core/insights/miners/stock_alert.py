@@ -13,6 +13,7 @@ from app.core.insights.base import AbstractInsightMiner
 from app.domain.models import InsightModel
 from app.domain.enums import InsightType
 from app.infrastructure.repositories.stock_repo import StockRepository
+from app.config import settings
 
 
 class StockAlertMiner(AbstractInsightMiner):
@@ -98,8 +99,8 @@ class StockAlertMiner(AbstractInsightMiner):
                 if context['total_sales'] > 0
                 else Decimal("0")
             )
-            # Estimer 5 ventes perdues par produit en rupture
-            estimated_lost_sales = len(critical_alerts) * 5
+            # Estimer N ventes perdues par produit en rupture (configurable)
+            estimated_lost_sales = len(critical_alerts) * settings.STOCK_ALERT_ESTIMATED_LOST_SALES_PER_PRODUCT
             financial_impact = avg_revenue_per_sale * Decimal(estimated_lost_sales)
         
         insight = InsightModel(
