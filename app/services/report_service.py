@@ -243,8 +243,11 @@ class ReportService:
         
         insights = []
         context = kpis.model_dump()
-        
-        for miner in self.insight_miners:
+
+        # ⚡ PERFORMANCE: Exécuter tous les miners en parallèle avec asyncio.gather
+        # return_exceptions=True permet aux miners individuels d'échouer sans bloquer les autres
+        async def safe_mine(miner):
+            """Wrapper pour capturer les exceptions individuelles"""
             try:
                 insight = await miner.mine(
                     company_id=company_id,
@@ -252,9 +255,8 @@ class ReportService:
                     end_date=end_date,
                     context=context
                 )
-                
+
                 if insight:
-                    insights.append(insight)
                     logger.debug(
                         f"Insight detected by {miner.name}",
                         extra={
@@ -263,7 +265,8 @@ class ReportService:
                             "priority": insight.priority
                         }
                     )
-                    
+                return insight
+
             except Exception as e:
                 logger.error(
                     f"Miner {miner.name} failed",
@@ -273,8 +276,13 @@ class ReportService:
                     },
                     exc_info=True
                 )
-                # Continuer avec les autres miners
-                continue
+                return None
+
+        # Exécuter tous les miners en parallèle
+        results = await asyncio.gather(*[safe_mine(miner) for miner in self.insight_miners])
+
+        # Filtrer les résultats None (erreurs ou pas d'insight)
+        insights = [r for r in results if r is not None]
         
         logger.info(
             "Insights extraction completed",

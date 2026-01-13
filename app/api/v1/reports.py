@@ -196,6 +196,30 @@ async def preview_report(
     # Valider la date si fournie
     end_date_obj = validate_date_string(end_date, "end_date")
 
+    # ⚡ PERFORMANCE: Cache Redis pour éviter recalcul répété (TTL 5 minutes)
+    from app.infrastructure.cache.redis_client import get_redis_client
+    import json
+
+    cache_key = f"preview:{company_id}:{frequency.value}:{end_date_obj or 'latest'}"
+
+    try:
+        # Essayer de récupérer depuis le cache
+        redis_client = await get_redis_client()
+        cached = await redis_client.get(cache_key)
+
+        if cached:
+            logger.info(
+                "Preview served from cache",
+                extra={"company_id": company_id, "cache_key": cache_key}
+            )
+            return json.loads(cached)
+    except Exception as cache_error:
+        # Si erreur cache, continuer sans cache
+        logger.warning(
+            "Cache retrieval failed, generating fresh report",
+            extra={"error": str(cache_error)}
+        )
+
     try:
         # Générer le rapport
         report_data = await service.generate_report(
@@ -203,13 +227,13 @@ async def preview_report(
             frequency=frequency,
             end_date=end_date_obj
         )
-        
+
         # Formater pour le retour
         from app.utils.formatters import WhatsAppFormatter
         formatter = WhatsAppFormatter()
         formatted_message = formatter.format_report(report_data)
-        
-        return {
+
+        result = {
             "company_name": report_data.company_name,
             "period_name": report_data.period_name,
             "period_range": report_data.period_range,
@@ -220,6 +244,15 @@ async def preview_report(
             "formatted_message": formatted_message,
             "message_length": len(formatted_message)
         }
+
+        # Mettre en cache (TTL 5 minutes = 300 secondes)
+        try:
+            await redis_client.setex(cache_key, 300, json.dumps(result))
+            logger.debug("Preview cached successfully", extra={"cache_key": cache_key})
+        except Exception as cache_error:
+            logger.warning("Failed to cache preview", extra={"error": str(cache_error)})
+
+        return result
         
     except ValueError as e:
         raise HTTPException(

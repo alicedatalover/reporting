@@ -80,32 +80,27 @@ class KPICalculator:
             }
         )
         
-        # Calcul en parallèle de tous les KPIs
+        # ⚡ PERFORMANCE: Calcul en VRAI parallèle avec asyncio.gather
         try:
-            # KPIs de ventes (optimisé en une seule requête)
-            sales_kpis = await self.order_repo.calculate_sales_kpis(
-                company_id, start_date, end_date
+            # Lancer toutes les requêtes DB en parallèle
+            (
+                sales_kpis,
+                new_customers,
+                returning_customers,
+                stock_alerts_count,
+                total_expenses
+            ) = await asyncio.gather(
+                self.order_repo.calculate_sales_kpis(company_id, start_date, end_date),
+                self.customer_repo.count_new_customers(company_id, start_date, end_date),
+                self.customer_repo.count_returning_customers(company_id, start_date, end_date),
+                self.stock_repo.count_stock_alerts(company_id),
+                self.expense_repo.calculate_total_expenses(company_id, start_date, end_date)
             )
+
+            # Extraire les données de ventes
             total_revenue = sales_kpis['total_revenue']
             total_sales = sales_kpis['total_sales']
-            
-            # KPIs clients
-            new_customers = await self.customer_repo.count_new_customers(
-                company_id, start_date, end_date
-            )
-            
-            returning_customers = await self.customer_repo.count_returning_customers(
-                company_id, start_date, end_date
-            )
-            
-            # KPIs stock
-            stock_alerts_count = await self.stock_repo.count_stock_alerts(company_id)
-            
-            # KPIs dépenses
-            total_expenses = await self.expense_repo.calculate_total_expenses(
-                company_id, start_date, end_date
-            )
-            
+
             # Calcul résultat net
             net_result = total_revenue - total_expenses
             

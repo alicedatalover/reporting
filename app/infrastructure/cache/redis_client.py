@@ -141,7 +141,8 @@ def get_redis_client_sync():
             }
         )
 
-        _redis_client_sync = redis_sync.Redis(
+        # Créer client local d'abord (pas encore assigné au global)
+        client = redis_sync.Redis(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             db=settings.REDIS_DB,
@@ -153,9 +154,9 @@ def get_redis_client_sync():
             health_check_interval=30
         )
 
-        # Tester la connexion
+        # Tester la connexion AVANT d'assigner au global
         try:
-            _redis_client_sync.ping()
+            client.ping()
             logger.info("Sync Redis client connected successfully")
         except Exception as e:
             logger.error(
@@ -163,7 +164,9 @@ def get_redis_client_sync():
                 extra={"error": str(e)},
                 exc_info=True
             )
-            _redis_client_sync = None
+            # Ne pas assigner au global si échec
             raise
 
+        # Assigner au global SEULEMENT après succès du test
+        _redis_client_sync = client
         return _redis_client_sync

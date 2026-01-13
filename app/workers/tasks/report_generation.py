@@ -30,8 +30,10 @@ from app.infrastructure.cache.redis_client import get_redis_client_sync
 
 logger = logging.getLogger(__name__)
 
-# Thread pool pour exécuter les coroutines dans Celery
-_executor = ThreadPoolExecutor(max_workers=10)
+# ⚡ PERFORMANCE: Thread pool limité à 3 workers pour éviter la saturation
+# 10 workers est excessif et peut causer des deadlocks sous charge
+# 3 workers suffisent pour le pont async/sync dans Celery
+_executor = ThreadPoolExecutor(max_workers=3)
 
 
 def run_async(coro):

@@ -87,7 +87,7 @@ async def detailed_health_check(
         health_status["checks"]["gemini"] = {
             "status": "disabled",
             "reason": "No API key configured"
-    }
+        }
     
     # Vérifier Redis (Celery)
     if settings.REDIS_HOST:
