@@ -76,13 +76,25 @@ class ReportConfig(ReportConfigBase):
 
 class KPIData(BaseModel):
     """Données KPI pour une période"""
-    total_revenue: Decimal = Field(default=Decimal("0"), description="Chiffre d'affaires")
-    total_sales: int = Field(default=0, description="Nombre de ventes")
-    new_customers: int = Field(default=0, description="Nouveaux clients")
-    returning_customers: int = Field(default=0, description="Clients récurrents")
-    stock_alerts_count: int = Field(default=0, description="Alertes stock")
-    total_expenses: Decimal = Field(default=Decimal("0"), description="Dépenses totales")
-    net_result: Decimal = Field(default=Decimal("0"), description="Résultat net")
+    total_revenue: Decimal = Field(default=Decimal("0"), description="Chiffre d'affaires", ge=0)
+    total_sales: int = Field(default=0, description="Nombre de ventes", ge=0)
+    new_customers: int = Field(default=0, description="Nouveaux clients", ge=0)
+    returning_customers: int = Field(default=0, description="Clients récurrents", ge=0)
+    stock_alerts_count: int = Field(default=0, description="Alertes stock", ge=0)
+    total_expenses: Decimal = Field(default=Decimal("0"), description="Dépenses totales", ge=0)
+    net_result: Decimal = Field(default=Decimal("0"), description="Résultat net")  # Peut être négatif (perte)
+
+    @field_validator('total_revenue', 'total_expenses')
+    @classmethod
+    def validate_positive_decimal(cls, v: Decimal, info) -> Decimal:
+        """
+        Valide que les montants financiers ne sont pas négatifs.
+
+        Note: net_result PEUT être négatif (perte), il n'est pas validé ici.
+        """
+        if v < 0:
+            raise ValueError(f"{info.field_name} ne peut pas être négatif: {v}")
+        return v
 
 
 class KPIComparison(BaseModel):

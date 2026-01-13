@@ -7,6 +7,25 @@ import re
 from typing import Optional
 
 
+def clean_phone_string(phone: str) -> str:
+    """
+    Nettoie une chaîne de téléphone (retire espaces, +, -).
+
+    Fonction utilitaire pour normaliser les numéros avant validation/parsing.
+
+    Args:
+        phone: Numéro brut
+
+    Returns:
+        Numéro nettoyé
+
+    Example:
+        >>> clean_phone_string("+237 6 12-34-56-78")
+        "237612345678"
+    """
+    return phone.replace("+", "").replace(" ", "").replace("-", "")
+
+
 class PhoneValidator:
     """Validateur de numéros de téléphone."""
     
@@ -20,38 +39,40 @@ class PhoneValidator:
     def validate(cls, phone: str) -> bool:
         """
         Valide un numéro de téléphone camerounais.
-        
+
         Args:
             phone: Numéro à valider
-        
+
         Returns:
             True si valide
         """
         if not phone:
             return False
-        
-        phone = phone.strip().replace(' ', '').replace('-', '')
-        
+
+        # ⚡ REFACTOR: Utilise la fonction utilitaire commune (définie plus bas)
+        phone = clean_phone_string(phone.strip())
+
         return bool(
             cls.CAMEROON_PATTERN.match(phone) or
             cls.LOCAL_PATTERN.match(phone)
         )
-    
+
     @classmethod
     def normalize(cls, phone: str) -> Optional[str]:
         """
         Normalise un numéro au format international.
-        
+
         Args:
             phone: Numéro à normaliser
-        
+
         Returns:
             Numéro au format +237XXXXXXXXX ou None si invalide
         """
         if not phone:
             return None
-        
-        phone = phone.strip().replace(' ', '').replace('-', '')
+
+        # ⚡ REFACTOR: Utilise la fonction utilitaire commune (définie plus bas)
+        phone = clean_phone_string(phone.strip())
         
         # Déjà au format international
         if cls.CAMEROON_PATTERN.match(phone):
@@ -152,8 +173,8 @@ def clean_telegram_chat_id(chat_id: str) -> str:
         >>> clean_telegram_chat_id("+237 6 12-34-56-78")
         "612345678"
     """
-    # Nettoyer les caractères spéciaux
-    cleaned = chat_id.replace("+", "").replace(" ", "").replace("-", "")
+    # ⚡ REFACTOR: Utilise la fonction utilitaire commune
+    cleaned = clean_phone_string(chat_id)
 
     # Retirer le préfixe 237 si présent
     if cleaned.startswith("237"):

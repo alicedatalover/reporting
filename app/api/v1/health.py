@@ -103,12 +103,12 @@ async def detailed_health_check(
             ok = await client.ping()
             health_status["checks"]["celery"] = {
                 "status": "healthy" if ok else "unhealthy",
-                "broker": settings.REDIS_URL
+                "broker": settings.mask_redis_url()  # ⚡ SECURITY: Masque le password
             }
         except Exception as e:
             health_status["checks"]["celery"] = {
                 "status": "unhealthy",
-                "broker": settings.REDIS_URL,
+                "broker": settings.mask_redis_url(),  # ⚡ SECURITY: Masque le password
                 "error": str(e)
             }
             health_status["status"] = "unhealthy"

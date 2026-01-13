@@ -128,6 +128,17 @@ class Settings(BaseSettings):
         """URL de connexion Redis"""
         password_part = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
         return f"redis://{password_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    def mask_redis_url(self) -> str:
+        """
+        URL Redis avec password masqué pour logging sécurisé.
+
+        Returns:
+            URL avec password remplacé par '***'
+        """
+        if self.REDIS_PASSWORD:
+            return f"redis://***@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
     
     @property
     def WHATSAPP_BASE_URL(self) -> str:
