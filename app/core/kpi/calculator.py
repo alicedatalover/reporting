@@ -9,6 +9,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Dict, Any
 import logging
+import asyncio
 
 from app.domain.models import KPIData
 from app.infrastructure.repositories.order_repo import OrderRepository

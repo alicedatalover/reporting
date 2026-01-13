@@ -12,6 +12,7 @@ Orchestre toute la logique de génération d'un rapport :
 from datetime import date, timedelta
 from typing import Dict, Any, Optional
 import logging
+import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
