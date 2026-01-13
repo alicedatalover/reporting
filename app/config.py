@@ -18,7 +18,12 @@ class Settings(BaseSettings):
     APP_NAME: str = Field(default="Genuka KPI Engine", description="Nom de l'application")
     ENVIRONMENT: Literal["development", "staging", "production"] = Field(
         default="development",
-        description="Environnement d'exécution"
+        description=(
+            "Environnement d'exécution. Valeurs possibles:\n"
+            "- 'development': Dev local, validations relâchées\n"
+            "- 'staging': Pré-production, validations strictes\n"
+            "- 'production': Production, validations maximales + sécurité"
+        )
     )
     DEBUG: bool = Field(default=False, description="Mode debug")
     SECRET_KEY: str = Field(default="change-me-in-production", description="Clé secrète")
@@ -91,11 +96,22 @@ class Settings(BaseSettings):
     # ==================== LOGGING ====================
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
-        description="Niveau de log"
+        description=(
+            "Niveau de log. Valeurs possibles:\n"
+            "- 'DEBUG': Maximum verbosité (dev uniquement)\n"
+            "- 'INFO': Événements normaux (recommandé)\n"
+            "- 'WARNING': Avertissements\n"
+            "- 'ERROR': Erreurs nécessitant attention\n"
+            "- 'CRITICAL': Erreurs critiques bloquantes"
+        )
     )
     LOG_FORMAT: Literal["json", "text"] = Field(
         default="json",
-        description="Format des logs"
+        description=(
+            "Format des logs. Valeurs possibles:\n"
+            "- 'json': JSON structuré (production, parsing facile)\n"
+            "- 'text': Texte lisible (dev local)"
+        )
     )
 
     # ==================== CORS ====================

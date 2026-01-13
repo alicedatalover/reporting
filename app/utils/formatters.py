@@ -8,6 +8,33 @@ Formate les rapports pour différents canaux de communication.
 from typing import Dict, Any
 from decimal import Decimal
 import textwrap
+import re
+
+
+def escape_markdown(text: str) -> str:
+    """
+    Échappe les caractères spéciaux Markdown pour WhatsApp/Telegram.
+
+    Protège contre la corruption du formatage si company_name ou autres
+    champs contiennent des caractères Markdown (* _ ` [ ]).
+
+    Args:
+        text: Texte potentiellement dangereux
+
+    Returns:
+        Texte sécurisé
+
+    Example:
+        >>> escape_markdown("Société_ABC*2000")
+        "Société\\_ABC\\*2000"
+    """
+    if not text:
+        return text
+
+    # Échapper les caractères spéciaux Markdown
+    # * _ ` [ ] ( ) # + - . !
+    special_chars = r'([*_`\[\]()#+\-.!\\])'
+    return re.sub(special_chars, r'\\\1', str(text))
 
 
 class WhatsAppFormatter:
@@ -48,6 +75,11 @@ class WhatsAppFormatter:
         kpis = report_dict.get("kpis", {})
         kpis_comparison = report_dict.get("kpis_comparison", {})
         recommendations = report_dict.get("recommendations", "")
+
+        # ⚡ SECURITY: Échapper les caractères spéciaux Markdown
+        company_name = escape_markdown(company_name)
+        period_name = escape_markdown(period_name)
+        period_range = escape_markdown(period_range)
 
         # -----------------------
         # Construire le message
@@ -164,6 +196,10 @@ class WhatsAppFormatter:
 
     @staticmethod
     def format_error_message(company_name: str, error: str) -> str:
+        # ⚡ SECURITY: Échapper les caractères spéciaux Markdown
+        company_name = escape_markdown(company_name)
+        error = escape_markdown(error)
+
         return (
             f"⚠️ *Rapport {company_name}*\n\n"
             f"Impossible de générer le rapport.\n"
