@@ -54,8 +54,10 @@ def create_engine() -> AsyncEngine:
         "pool_timeout": 30,
         "echo": settings.DEBUG,
         "future": True,
+        # Désactiver SSL pour connexion MySQL locale (Docker -> Windows host)
+        "connect_args": {"ssl": None}
     }
-    
+
     new_engine = create_async_engine(
         database_url,
         **pool_config
