@@ -136,7 +136,7 @@ class Settings(BaseSettings):
         return (
             f"mysql+aiomysql://{self.DB_USER}{password_part}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-            f"?charset={self.DB_CHARSET}"
+            f"?charset={self.DB_CHARSET}&ssl_mode=DISABLED"
         )
     
     @property
