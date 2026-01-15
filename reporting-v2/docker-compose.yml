@@ -1,0 +1,92 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: genuka-redis-v2
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - genuka-network
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: genuka-api-v2
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    volumes:
+      - ./app:/app/app:ro
+      - ./logs:/app/logs
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - redis
+    networks:
+      - genuka-network
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: genuka-worker-v2
+    env_file:
+      - .env.docker
+    volumes:
+      - ./app:/app/app:ro
+      - ./logs:/app/logs
+    command: celery -A app.worker.tasks worker --loglevel=info --concurrency=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.tasks inspect ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - redis
+    networks:
+      - genuka-network
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: genuka-beat-v2
+    env_file:
+      - .env.docker
+    volumes:
+      - ./app:/app/app:ro
+      - ./logs:/app/logs
+      - beat_schedule:/app/schedule
+    command: celery -A app.worker.tasks beat --loglevel=info
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - genuka-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  beat_schedule:
+    driver: local
+
+networks:
+  genuka-network:
+    driver: bridge

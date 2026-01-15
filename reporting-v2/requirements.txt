@@ -1,0 +1,23 @@
+# API Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+aiomysql==0.2.0
+sqlalchemy[asyncio]==2.0.25
+
+# Celery & Redis
+celery==5.3.6
+redis==5.0.1
+
+# HTTP Client
+httpx==0.26.0
+
+# AI/ML
+google-generativeai==0.3.2
+
+# Utilities
+python-dotenv==1.0.0
+python-dateutil==2.8.2
