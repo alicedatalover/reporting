@@ -39,13 +39,13 @@ async def send_telegram_message(
     # URL
     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
 
-    # Payload (désactiver Markdown pour éviter les erreurs de formatage)
+    # Payload (pas de parse_mode pour éviter erreurs de formatage avec emojis)
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": None,  # Pas de Markdown pour éviter conflits avec emojis
         "disable_web_page_preview": True
     }
+    # NOTE: On n'inclut pas "parse_mode" du tout car None est invalide
 
     logger.info(
         "Sending Telegram message",
