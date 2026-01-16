@@ -60,12 +60,15 @@ async def generate_recommendations(
         last_year_kpis
     )
 
-    # Prompt ultra-simple : pas de markdown, pas de numéros, pas d'intro
-    prompt = f"""Tu es un conseiller business. Donne 3 recommandations simples basées sur ces données. Réponds DIRECTEMENT sans introduction, sans markdown, sans numéros. Juste 3 phrases d'action utilisant "vous".
+    # Prompt avec exemple pour forcer le bon format
+    prompt = f"""Tu es un conseiller business. Donne 3-4 recommandations courtes (1 phrase chacune). Pas de titre, pas de markdown, pas de numéros. Juste des phrases d'action avec "vous".
+
+EXEMPLE DU FORMAT ATTENDU :
+Réapprovisionnez en urgence vos produits en rupture pour éviter de perdre des ventes. Lancez une promotion ciblée en milieu de semaine pour relancer l'activité sur les jours creux. Contactez vos clients inactifs avec une offre spéciale avant qu'ils ne partent définitivement.
 
 {context}
 
-Écris 3 recommandations :"""
+VOS RECOMMANDATIONS :"""
 
     try:
         # Appeler Gemini avec retry
