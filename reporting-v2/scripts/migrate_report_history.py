@@ -30,10 +30,10 @@ async def migrate_report_history():
         print(f"   ❌ Erreur : {e}")
         return
 
-    # 2. Définir les colonnes requises pour v2
+    # 2. Définir les colonnes requises pour v2 (format: nom complet de la définition SQL)
     required_columns = {
-        'frequency': "ENUM('weekly', 'monthly') NOT NULL DEFAULT 'weekly' COMMENT 'Fréquence du rapport' AFTER company_id",
-        'sent_at': "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Date d''envoi du rapport'"
+        'frequency': "frequency ENUM('weekly', 'monthly') NOT NULL DEFAULT 'weekly' COMMENT 'Fréquence du rapport' AFTER company_id",
+        'sent_at': "sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Date d''envoi du rapport'"
     }
 
     # 3. Ajouter chaque colonne manquante
