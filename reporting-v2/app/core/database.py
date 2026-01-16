@@ -40,8 +40,11 @@ def init_database():
         pool_recycle=1800,
         pool_timeout=30,
         echo=settings.DEBUG,
-        # Désactiver SSL pour connexion MySQL locale (Docker -> Windows host)
-        connect_args={"ssl": None}
+        # Désactiver SSL + forcer UTF-8 pour accents
+        connect_args={
+            "ssl": None,
+            "charset": "utf8mb4"
+        }
     )
 
     # Créer le session maker

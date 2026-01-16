@@ -60,24 +60,13 @@ async def generate_recommendations(
         last_year_kpis
     )
 
-    # Prompt optimisé
-    prompt = f"""Tu es un conseiller business expert pour les PME en Afrique.
+    # Prompt simplifié pour éviter que Gemini coupe
+    prompt = f"""Tu es un conseiller business pour PME. Donne 3-4 recommandations concrètes basées sur ces données. Sois direct, pas de répétition des chiffres, juste des actions à faire. Utilise le "vous" et écris en phrases complètes.
 
 CONTEXTE :
 {context}
 
-INSTRUCTIONS STRICTES :
-1. NE RÉPÈTE PAS les chiffres déjà mentionnés dans le contexte
-2. SYNTHÉTISE les insights en recommandations actionnables
-3. Sois DIRECT et PRÉCIS (pas de formules creuses)
-4. Maximum 4 phrases courtes
-5. Utilise le "vous" pour parler à l'entreprise
-6. Chaque phrase = 1 action concrète à faire
-
-FORMAT ATTENDU :
-Une seule phrase par recommandation. Pas de listes à puces, pas de numéros.
-
-GÉNÈRE LES RECOMMANDATIONS :"""
+RECOMMANDATIONS :"""
 
     try:
         # Appeler Gemini avec retry
