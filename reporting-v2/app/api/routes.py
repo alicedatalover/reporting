@@ -211,13 +211,19 @@ async def generate_report(request: GenerateReportRequest):
         # Vérifier filtrage activité (30 jours)
         last_activity = await get_last_activity_date(request.company_id)
         if last_activity:
-            days_since_activity = (settings.get_current_date() - datetime.strptime(last_activity, "%Y-%m-%d").date()).days
+            # last_activity peut être un objet date ou une string selon la config MySQL
+            if isinstance(last_activity, str):
+                last_activity_date = datetime.strptime(last_activity, "%Y-%m-%d").date()
+            else:
+                last_activity_date = last_activity
+
+            days_since_activity = (settings.get_current_date() - last_activity_date).days
             if days_since_activity > settings.INACTIVE_DAYS_THRESHOLD:
                 return {
                     "status": "skipped",
                     "reason": "inactive",
                     "message": f"No sales in last {settings.INACTIVE_DAYS_THRESHOLD} days",
-                    "last_activity": last_activity
+                    "last_activity": str(last_activity_date)
                 }
 
         # Calculer les dates
