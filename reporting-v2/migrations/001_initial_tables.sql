@@ -61,35 +61,12 @@ CREATE TABLE IF NOT EXISTS report_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Historique de tous les rapports générés';
 
 -- ================================================
--- Script d'initialisation
+-- NOTE: Initialisation des configurations
 -- ================================================
--- Crée automatiquement une configuration pour chaque entreprise existante
-INSERT INTO report_configs (company_id, frequency, enabled, last_activity_date)
-SELECT
-    c.id,
-    'weekly' AS frequency,
-    TRUE AS enabled,
-    (SELECT MAX(DATE(o.created_at))
-     FROM orders o
-     WHERE o.company_id = c.id
-       AND o.deleted_at IS NULL) AS last_activity_date
-FROM companies c
-WHERE NOT EXISTS (
-    SELECT 1 FROM report_configs rc WHERE rc.company_id = c.id
-)
-ON DUPLICATE KEY UPDATE company_id = company_id;
-
--- ================================================
--- Vérification
--- ================================================
-SELECT
-    'report_configs' AS table_name,
-    COUNT(*) AS row_count,
-    'Configurations créées' AS description
-FROM report_configs
-UNION ALL
-SELECT
-    'report_history' AS table_name,
-    COUNT(*) AS row_count,
-    'Historique des rapports' AS description
-FROM report_history;
+-- Pour remplir automatiquement report_configs avec toutes les entreprises,
+-- exécutez le script Python après avoir créé les tables :
+--
+--   docker-compose exec api python /app/scripts/init_configs.py
+--
+-- Ce script récupère toutes les entreprises et crée leur configuration
+-- en évitant les problèmes de collation entre tables.

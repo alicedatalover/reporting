@@ -41,28 +41,109 @@ docker compose logs -f beat
 
 **Attendu** : Aucune erreur de connexion DB, messages de démarrage OK.
 
-## Étape 3 : Exécuter les migrations
+## Étape 3 : Exécuter les migrations (Créer les tables)
+
+### 3a. Entrer dans le conteneur
 
 ```bash
-docker compose exec api bash -c "cd /app && python -c \"
+docker exec -it genuka-api-v2 bash
+```
+
+### 3b. Créer les tables SQL
+
+```bash
+python << 'EOF'
 import asyncio
 from app.core.database import init_database, execute_insert
 
-async def run_migrations():
+async def create_tables():
     init_database()
-    with open('/app/migrations/001_initial_tables.sql', 'r') as f:
-        sql = f.read()
-    # Exécuter chaque statement séparément
-    for statement in sql.split(';'):
-        if statement.strip():
-            await execute_insert(statement)
-    print('✓ Migrations exécutées avec succès')
 
-asyncio.run(run_migrations())
-\""
+    # Table report_configs
+    await execute_insert('''
+        CREATE TABLE IF NOT EXISTS report_configs (
+            company_id VARCHAR(26) PRIMARY KEY,
+            frequency ENUM('weekly', 'monthly') NOT NULL DEFAULT 'weekly',
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            whatsapp_number VARCHAR(20) DEFAULT NULL,
+            last_activity_date DATE DEFAULT NULL,
+            next_report_date DATE DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+            INDEX idx_enabled (enabled),
+            INDEX idx_frequency (frequency),
+            INDEX idx_next_report_date (next_report_date),
+            INDEX idx_last_activity (last_activity_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    print('✓ Table report_configs created')
+
+    # Table report_history
+    await execute_insert('''
+        CREATE TABLE IF NOT EXISTS report_history (
+            id VARCHAR(26) PRIMARY KEY,
+            company_id VARCHAR(26) NOT NULL,
+            frequency ENUM('weekly', 'monthly') NOT NULL,
+            period_start DATE NOT NULL,
+            period_end DATE NOT NULL,
+            kpis JSON DEFAULT NULL,
+            insights JSON DEFAULT NULL,
+            recommendations TEXT DEFAULT NULL,
+            status ENUM('success', 'failed', 'skipped') NOT NULL DEFAULT 'success',
+            error_message TEXT DEFAULT NULL,
+            delivery_method ENUM('whatsapp', 'telegram') DEFAULT NULL,
+            recipient VARCHAR(50) DEFAULT NULL,
+            execution_time_ms INT DEFAULT NULL,
+            sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+            INDEX idx_company_id (company_id),
+            INDEX idx_status (status),
+            INDEX idx_sent_at (sent_at),
+            INDEX idx_period (period_start, period_end)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    print('✓ Table report_history created')
+
+asyncio.run(create_tables())
+EOF
 ```
 
-**Attendu** : Message de succès, tables `report_configs` et `report_history` créées.
+**Attendu** :
+```
+✓ Table report_configs created
+✓ Table report_history created
+```
+
+### 3c. Initialiser les configurations pour toutes les entreprises
+
+```bash
+python /app/scripts/init_configs.py
+```
+
+**Attendu** :
+```
+✓ Database initialized
+
+Trouvé 15 entreprises
+
+✓ Restaurant Kerma                       (dernière activité: 2026-01-10)
+✓ Boutique Élégance                      (dernière activité: 2026-01-12)
+...
+
+======================================================================
+✓ Initialisation terminée
+  - 15 configurations créées
+  - 0 configurations existantes (skipped)
+  - Total: 15 entreprises
+======================================================================
+```
+
+### 3d. Sortir du conteneur
+
+```bash
+exit
+```
 
 ## Étape 4 : Health Check Détaillé
 
