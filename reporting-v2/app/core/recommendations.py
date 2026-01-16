@@ -81,15 +81,38 @@ RECOMMANDATIONS :"""
                     )
                 )
 
+                # CRITIQUE : Vérifier pourquoi Gemini s'est arrêté
+                finish_reason = response.candidates[0].finish_reason
                 recommendations = response.text.strip()
 
                 logger.info(
                     "Gemini recommendations generated",
                     extra={
                         "company_name": company_name,
-                        "recommendations_length": len(recommendations)
+                        "recommendations_length": len(recommendations),
+                        "finish_reason": str(finish_reason)
                     }
                 )
+
+                # Si Gemini a atteint la limite de tokens, logger et utiliser fallback
+                if finish_reason.name == "MAX_TOKENS":
+                    logger.warning(
+                        f"Gemini hit MAX_TOKENS limit ({settings.GEMINI_MAX_TOKENS}), using fallback",
+                        extra={"company_name": company_name}
+                    )
+                    return generate_fallback_recommendations(
+                        company_name, kpis, kpis_comparison, insights
+                    )
+
+                # Si filtre de sécurité ou autre problème, utiliser fallback
+                if finish_reason.name not in ["STOP", "MAX_TOKENS"]:
+                    logger.warning(
+                        f"Gemini stopped unexpectedly: {finish_reason.name}, using fallback",
+                        extra={"company_name": company_name}
+                    )
+                    return generate_fallback_recommendations(
+                        company_name, kpis, kpis_comparison, insights
+                    )
 
                 return recommendations
 
