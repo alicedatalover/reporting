@@ -50,14 +50,18 @@ def format_whatsapp_message(
     else:
         qualificatif = "difficile"
 
-    # Formater évolutions avec symbole
+    # Détecter la fréquence depuis period_range
+    is_weekly = "semaine" in period_range.lower()
+
+    # Formater évolutions avec symbole et contexte clair
     def format_evolution(value: float) -> str:
+        period_label = "vs sem. précédente" if is_weekly else "vs mois précédent"
         if value > 0:
-            return f"(+{value:.1f}%)"
+            return f"(+{value:.1f}% {period_label})"
         elif value < 0:
-            return f"({value:.1f}%)"
+            return f"({value:.1f}% {period_label})"
         else:
-            return "(stable)"
+            return f"(stable {period_label})"
 
     # Construire le message
     lines = []
